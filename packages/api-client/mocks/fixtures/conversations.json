@@ -1,0 +1,73 @@
+[
+  {
+    "id": "conv_1001",
+    "project_id": "prj_12",
+    "source": "bale",
+    "robot_id": "987654",
+    "chat_id": "501",
+    "customer": {
+      "id": "usr_501",
+      "display_name": "علی محمدی",
+      "mobile": "۰۹۱۲۱۲۳۴۵۶۷",
+      "initials": "عم"
+    },
+    "support_level": "level_1",
+    "status": "open",
+    "assignee": {
+      "id": "op_42",
+      "name": "سارا رضایی"
+    },
+    "last_message": "سلام، وضعیت سفارش من چیست؟",
+    "last_message_at": "2026-11-24T10:42:00.000Z",
+    "unread_count": 2,
+    "created_at": "2026-11-24T10:40:00.000Z",
+    "updated_at": "2026-11-24T10:42:00.000Z",
+    "deleted_at": null
+  },
+  {
+    "id": "conv_1002",
+    "project_id": "prj_12",
+    "source": "chat",
+    "robot_id": "toka-main-chat",
+    "chat_id": "usr_778",
+    "customer": {
+      "id": "usr_778",
+      "display_name": "مریم احمدی",
+      "mobile": "۰۹۳۵۱۱۱۲۲۳۳",
+      "initials": "ما"
+    },
+    "support_level": "level_2",
+    "status": "escalated",
+    "assignee": {
+      "id": "op_18",
+      "name": "امیر کریمی"
+    },
+    "last_message": "لطفاً رسید پرداخت را بررسی کنید.",
+    "last_message_at": "2026-11-24T09:18:00.000Z",
+    "unread_count": 0,
+    "created_at": "2026-11-23T15:10:00.000Z",
+    "updated_at": "2026-11-24T09:18:00.000Z",
+    "deleted_at": null
+  },
+  {
+    "id": "conv_1003",
+    "project_id": "prj_12",
+    "source": "bale",
+    "robot_id": "987654",
+    "chat_id": "990",
+    "customer": {
+      "id": null,
+      "display_name": "کاربر بله",
+      "initials": "کب"
+    },
+    "support_level": "level_1",
+    "status": "pending_customer",
+    "assignee": null,
+    "last_message": "ممنون از راهنمایی شما.",
+    "last_message_at": "2026-11-23T12:05:00.000Z",
+    "unread_count": 0,
+    "created_at": "2026-11-23T11:50:00.000Z",
+    "updated_at": "2026-11-23T12:05:00.000Z",
+    "deleted_at": null
+  }
+]

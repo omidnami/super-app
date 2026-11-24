@@ -1,0 +1,19 @@
+{
+  "name": "@superapp/theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@superapp/design-tokens": "0.1.0",
+    "@superapp/storage": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "acc_6001",
+    "code": "INV-2026-1108",
+    "type": "invoice",
+    "status": "confirmed",
+    "counterparty_name": "علی محمدی",
+    "total": {
+      "amount": 12989000,
+      "currency": "IRR"
+    },
+    "issued_at": "2026-11-24T08:25:00.000Z",
+    "updated_at": "2026-11-24T08:25:00.000Z",
+    "deleted_at": null,
+    "description": "فاکتور فروش سفارش TK-1008"
+  },
+  {
+    "id": "acc_6002",
+    "code": "PAY-2026-0311",
+    "type": "payment",
+    "status": "confirmed",
+    "counterparty_name": "تأمین‌کننده دیجیتال",
+    "total": {
+      "amount": 3200000,
+      "currency": "IRR"
+    },
+    "issued_at": "2026-11-23T11:00:00.000Z",
+    "updated_at": "2026-11-23T11:00:00.000Z",
+    "deleted_at": null,
+    "description": "پرداخت هزینه تأمین کالا"
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "prd_5001",
+    "title": "هدفون بی‌سیم سونی WH-1000XM5",
+    "slug": "sony-wh-1000xm5",
+    "status": "active",
+    "price": {
+      "amount": 12989000,
+      "currency": "IRR"
+    },
+    "inventory_quantity": 8,
+    "variants": [
+      {
+        "id": "var_5001",
+        "title": "مشکی",
+        "sku": "XM5-BLK",
+        "price": {
+          "amount": 12989000,
+          "currency": "IRR"
+        },
+        "inventory_quantity": 8
+      }
+    ],
+    "updated_at": "2026-11-24T10:30:00.000Z",
+    "deleted_at": null
+  },
+  {
+    "id": "prd_5002",
+    "title": "اسپیکر بلوتوثی جی‌بی‌ال Charge 5",
+    "slug": "jbl-charge-5",
+    "status": "active",
+    "price": {
+      "amount": 8750000,
+      "currency": "IRR"
+    },
+    "inventory_quantity": 3,
+    "variants": [
+      {
+        "id": "var_5002",
+        "title": "آبی",
+        "sku": "CH5-BLU",
+        "price": {
+          "amount": 8750000,
+          "currency": "IRR"
+        },
+        "inventory_quantity": 3
+      }
+    ],
+    "updated_at": "2026-11-23T16:45:00.000Z",
+    "deleted_at": null
+  }
+]

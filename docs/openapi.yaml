@@ -1,0 +1,1576 @@
+openapi: 3.1.0
+info:
+  title: Superapp MVP API Contract
+  version: 1.0.0
+  description: |
+    قرارداد Mock برای MVP سوپراپلیکیشن. Auth سراسری وجود ندارد؛
+    سرویس پیام‌رسان و مدیریت حساب Session مستقل دارند.
+servers:
+  - url: https://mock.superapp.local
+    description: Mock API
+security: []
+tags:
+  - name: Messaging Auth
+  - name: Account Auth
+  - name: Chat
+  - name: Media
+  - name: Shop
+  - name: Accounting
+paths:
+  /api/v1/messaging/auth/session:
+    post:
+      tags: [Messaging Auth]
+      operationId: createMessagingSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceSessionRequest'
+      responses:
+        '200':
+          description: Session پیام‌رسان
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/messaging/auth/refresh:
+    post:
+      tags: [Messaging Auth]
+      operationId: refreshMessagingSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshSessionRequest'
+      responses:
+        '200':
+          description: Session تازه
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/messaging/auth/logout:
+    post:
+      tags: [Messaging Auth]
+      security:
+        - MessagingBearer: []
+      responses:
+        '200':
+          description: Session باطل شد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionRevokedResponse'
+  /api/v1/messaging/auth/context:
+    get:
+      tags: [Messaging Auth]
+      security:
+        - MessagingBearer: []
+      responses:
+        '200':
+          description: Context پیام‌رسان
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagingContextResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/auth/session:
+    post:
+      tags: [Account Auth]
+      operationId: createAccountSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceSessionRequest'
+      responses:
+        '200':
+          description: Session مدیریت حساب
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/account/auth/refresh:
+    post:
+      tags: [Account Auth]
+      operationId: refreshAccountSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshSessionRequest'
+      responses:
+        '200':
+          description: Session تازه
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/auth/logout:
+    post:
+      tags: [Account Auth]
+      security:
+        - AccountBearer: []
+      responses:
+        '200':
+          description: Session باطل شد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionRevokedResponse'
+  /api/v1/account/auth/context:
+    get:
+      tags: [Account Auth]
+      security:
+        - AccountBearer: []
+      responses:
+        '200':
+          description: Context مدیریت حساب
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountContextResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/chat/connection-ticket:
+    post:
+      tags: [Chat]
+      operationId: createConnectionTicket
+      security:
+        - MessagingBearer: []
+      responses:
+        '200':
+          description: Ticket کوتاه‌عمر
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTicketResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/chat/connection-ticket/refresh:
+    post:
+      tags: [Chat]
+      operationId: refreshConnectionTicket
+      security:
+        - MessagingBearer: []
+      responses:
+        '200':
+          description: Ticket تازه
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTicketResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/chat/bootstrap:
+    get:
+      tags: [Chat]
+      operationId: getChatBootstrap
+      security:
+        - MessagingBearer: []
+      responses:
+        '200':
+          description: Bootstrap چت
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatBootstrapResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/chat/conversations:
+    get:
+      tags: [Chat]
+      operationId: listConversations
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            $ref: '#/components/schemas/ChatSource'
+        - name: support_level
+          in: query
+          schema:
+            $ref: '#/components/schemas/SupportLevel'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ConversationStatus'
+        - name: assignee_operator_id
+          in: query
+          schema:
+            type: string
+        - name: unread_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: فهرست گفتگوها
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/chat/conversations/{conversation_id}:
+    get:
+      tags: [Chat]
+      operationId: getConversation
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: جزئیات گفتگو
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/chat/conversations/{conversation_id}/messages:
+    get:
+      tags: [Chat]
+      operationId: listMessages
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: before
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: تاریخچه پیام
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/chat/messages:
+    post:
+      tags: [Chat]
+      operationId: sendMessage
+      security:
+        - MessagingBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: پیام ذخیره یا تکرار شناسایی شد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/messages/{message_id}/status:
+    post:
+      tags: [Chat]
+      operationId: updateMessageStatus
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMessageStatusRequest'
+      responses:
+        '200':
+          description: وضعیت پیام
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanonicalMessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/conversations/{conversation_id}/read:
+    post:
+      tags: [Chat]
+      operationId: markConversationRead
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: گفتگو به‌روز شد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+  /api/v1/chat/conversations/{conversation_id}/assign:
+    post:
+      tags: [Chat]
+      operationId: assignConversation
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignConversationRequest'
+      responses:
+        '200':
+          description: گفتگو تخصیص یافت
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/conversations/{conversation_id}/escalate:
+    post:
+      tags: [Chat]
+      operationId: escalateConversation
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EscalateConversationRequest'
+      responses:
+        '200':
+          description: سطح گفتگو تغییر کرد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/conversations/{conversation_id}/status:
+    post:
+      tags: [Chat]
+      operationId: updateConversationStatus
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConversationStatusRequest'
+      responses:
+        '200':
+          description: وضعیت گفتگو تغییر کرد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/sync:
+    get:
+      tags: [Chat]
+      operationId: syncChat
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: تغییرات سرور
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '410':
+          description: cursor منقضی؛ نیاز به Full Resync
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/chat/attachments:
+    post:
+      tags: [Media]
+      operationId: uploadAttachment
+      security:
+        - MessagingBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadAttachmentRequest'
+      responses:
+        '201':
+          description: پیوست ساخته شد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/chat/attachments/{attachment_id}:
+    get:
+      tags: [Media]
+      operationId: getAttachment
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          description: metadata پیوست
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/chat/attachments/{attachment_id}/content:
+    get:
+      tags: [Media]
+      operationId: getAttachmentContent
+      security:
+        - MessagingBearer: []
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          description: محتوای پیوست؛ در Production Stream است
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockAttachmentContent'
+  /api/v1/account/shop/dashboard:
+    get:
+      tags: [Shop]
+      operationId: getShopDashboard
+      security:
+        - AccountBearer: []
+      responses:
+        '200':
+          description: داشبورد فروشگاه
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopDashboardResponse'
+  /api/v1/account/shop/orders:
+    get:
+      tags: [Shop]
+      operationId: listOrders
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+      responses:
+        '200':
+          description: فهرست سفارش
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPageResponse'
+  /api/v1/account/shop/orders/{order_id}:
+    get:
+      tags: [Shop]
+      operationId: getOrder
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: جزئیات سفارش
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/account/shop/products:
+    get:
+      tags: [Shop]
+      operationId: listProducts
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: فهرست محصول
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPageResponse'
+  /api/v1/account/shop/products/{product_id}:
+    get:
+      tags: [Shop]
+      operationId: getProduct
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: جزئیات محصول
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/account/accounting/dashboard:
+    get:
+      tags: [Accounting]
+      operationId: getAccountingDashboard
+      security:
+        - AccountBearer: []
+      responses:
+        '200':
+          description: داشبورد حسابداری
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountingDashboardResponse'
+  /api/v1/account/accounting/documents:
+    get:
+      tags: [Accounting]
+      operationId: listAccountingDocuments
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/AccountingDocumentType'
+      responses:
+        '200':
+          description: فهرست اسناد
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountingDocumentPageResponse'
+  /api/v1/account/accounting/documents/{document_id}:
+    get:
+      tags: [Accounting]
+      operationId: getAccountingDocument
+      security:
+        - AccountBearer: []
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: جزئیات سند
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountingDocumentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    MessagingBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access Token مستقل سرویس پیام‌رسان
+    AccountBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access Token مستقل سرویس مدیریت حساب
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    ConversationId:
+      name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+    MessageId:
+      name: message_id
+      in: path
+      required: true
+      schema:
+        type: string
+    AttachmentId:
+      name: attachment_id
+      in: path
+      required: true
+      schema:
+        type: string
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: نشست نامعتبر یا منقضی
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: عدم مجوز
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: منبع پیدا نشد
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: تعارض داده یا Mutation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ValidationError:
+      description: داده ورودی نامعتبر
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    RateLimited:
+      description: محدودیت نرخ
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    UpstreamUnavailable:
+      description: سرویس بالادستی در دسترس نیست
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  schemas:
+    ApiError:
+      type: object
+      required: [status, code, message, retryable]
+      properties:
+        status:
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    ServiceSessionRequest:
+      type: object
+      required: [operator_id, project_id, access_code]
+      properties:
+        operator_id:
+          type: string
+        project_id:
+          type: string
+        access_code:
+          type: string
+    RefreshSessionRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    ServiceSession:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, service, context]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          const: Bearer
+        expires_in:
+          type: integer
+        service:
+          type: string
+          enum: [messaging, account]
+        context:
+          $ref: '#/components/schemas/ServiceAuthContext'
+    ServiceAuthContext:
+      type: object
+      required: [operator_id, operator_name, project_id, project_name, permissions]
+      properties:
+        operator_id:
+          type: string
+        operator_name:
+          type: string
+        project_id:
+          type: string
+        project_name:
+          type: string
+        support_level:
+          $ref: '#/components/schemas/SupportLevel'
+        permissions:
+          type: array
+          items:
+            type: string
+    ServiceSessionResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ServiceSession'
+    MessagingContextResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ServiceAuthContext'
+    AccountContextResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ServiceAuthContext'
+    SessionRevoked:
+      type: object
+      required: [revoked, revoked_at]
+      properties:
+        revoked:
+          const: true
+        revoked_at:
+          type: string
+          format: date-time
+    SessionRevokedResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/SessionRevoked'
+    SupportLevel:
+      type: string
+      enum: [level_1, level_2, level_3]
+    ChatSource:
+      type: string
+      enum: [bale, chat, rubika, telegram, whatsapp, instagram, eitaa]
+    ConnectionTicket:
+      type: object
+      required: [hub_url, connection_token, expires_at, project_id, operator_id, support_level, allowed_sources]
+      properties:
+        hub_url:
+          type: string
+          format: uri
+        connection_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        project_id:
+          type: string
+        operator_id:
+          type: string
+        support_level:
+          $ref: '#/components/schemas/SupportLevel'
+        allowed_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSource'
+    ConnectionTicketResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ConnectionTicket'
+    CustomerSummary:
+      type: object
+      required: [id, display_name, initials]
+      properties:
+        id:
+          type: [string, 'null']
+        display_name:
+          type: string
+        mobile:
+          type: string
+        initials:
+          type: string
+    OperatorSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    ConversationStatus:
+      type: string
+      enum: [open, assigned, pending_customer, escalated, closed]
+    Conversation:
+      type: object
+      required: [id, project_id, source, robot_id, chat_id, customer, support_level, status, assignee, last_message, last_message_at, unread_count, created_at, updated_at, deleted_at]
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        source:
+          $ref: '#/components/schemas/ChatSource'
+        robot_id:
+          type: string
+        chat_id:
+          type: string
+        customer:
+          $ref: '#/components/schemas/CustomerSummary'
+        support_level:
+          $ref: '#/components/schemas/SupportLevel'
+        status:
+          $ref: '#/components/schemas/ConversationStatus'
+        assignee:
+          oneOf:
+            - $ref: '#/components/schemas/OperatorSummary'
+            - type: 'null'
+        last_message:
+          type: string
+        last_message_at:
+          type: [string, 'null']
+          format: date-time
+        unread_count:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+    ConversationResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/Conversation'
+    ConversationPage:
+      type: object
+      required: [items, next_cursor, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        next_cursor:
+          type: [string, 'null']
+        has_more:
+          type: boolean
+        total:
+          type: integer
+    ConversationPageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ConversationPage'
+    Attachment:
+      type: object
+      required: [id, provider, type, file_name, mime_type, file_size, duration, url, created_at]
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          enum: [planet, bale]
+        type:
+          type: string
+          enum: [photo, voice, audio, video, document]
+        file_name:
+          type: string
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+          minimum: 0
+        duration:
+          type: [integer, 'null']
+          minimum: 0
+        url:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+    CanonicalMessage:
+      type: object
+      required: [id, conversation_id, client_mutation_id, sender, sender_id, text, attachment, sent_at, created_at, updated_at, deleted_at, delivery_status]
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        client_mutation_id:
+          type: [string, 'null']
+        sender:
+          type: string
+          enum: [client, operator]
+        sender_id:
+          type: string
+        text:
+          type: string
+        attachment:
+          oneOf:
+            - $ref: '#/components/schemas/Attachment'
+            - type: 'null'
+        sent_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+        delivery_status:
+          type: string
+          enum: [pending, sent, failed, unknown]
+    CanonicalMessageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/CanonicalMessage'
+    MessagePage:
+      type: object
+      required: [items, next_cursor, has_more, conversation]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CanonicalMessage'
+        next_cursor:
+          type: [string, 'null']
+        has_more:
+          type: boolean
+        conversation:
+          $ref: '#/components/schemas/Conversation'
+    MessagePageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/MessagePage'
+    HubMessage:
+      type: object
+      required: [user_id, sender, text, file, robot_id, timestamp, source]
+      properties:
+        user_id:
+          type: string
+        sender:
+          type: string
+          enum: [client, operator]
+        text:
+          type: string
+        file: {}
+        robot_id:
+          type: string
+        timestamp:
+          type: integer
+        source:
+          $ref: '#/components/schemas/ChatSource'
+    SendMessageRequest:
+      type: object
+      required: [source, robot_id, channel_chat_id, sender, client_mutation_id]
+      properties:
+        source:
+          $ref: '#/components/schemas/ChatSource'
+        robot_id:
+          type: string
+        channel_chat_id:
+          type: string
+        sender:
+          type: string
+          enum: [client, operator]
+        text:
+          type: string
+        attachment:
+          oneOf:
+            - $ref: '#/components/schemas/Attachment'
+            - type: 'null'
+        client_mutation_id:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+    SendMessageResult:
+      type: object
+      required: [created, conversation, message]
+      properties:
+        created:
+          type: boolean
+        conversation:
+          $ref: '#/components/schemas/Conversation'
+        message:
+          $ref: '#/components/schemas/CanonicalMessage'
+    SendMessageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/SendMessageResult'
+    UpdateMessageStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [sent, failed]
+    AssignConversationRequest:
+      type: object
+      required: [operator_id]
+      properties:
+        operator_id:
+          type: string
+    EscalateConversationRequest:
+      type: object
+      required: [support_level]
+      properties:
+        support_level:
+          $ref: '#/components/schemas/SupportLevel'
+        reason:
+          type: string
+    UpdateConversationStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ConversationStatus'
+    SyncChange:
+      type: object
+      required: [entity, id, op, version, updated_at, deleted_at, data]
+      properties:
+        entity:
+          type: string
+          enum: [conversation, message]
+        id:
+          type: string
+        op:
+          type: string
+          enum: [upsert, delete]
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+        data: {}
+    SyncResult:
+      type: object
+      required: [changes, next_cursor, server_time, has_more]
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncChange'
+        next_cursor:
+          type: string
+        server_time:
+          type: string
+          format: date-time
+        has_more:
+          type: boolean
+    SyncResultResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/SyncResult'
+    UploadAttachmentRequest:
+      type: object
+      required: [kind, file_name, mime_type, file_size]
+      properties:
+        kind:
+          type: string
+          enum: [photo, voice, audio, video, document]
+        file_name:
+          type: string
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+          minimum: 1
+        duration:
+          type: integer
+          minimum: 0
+    AttachmentResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/Attachment'
+    MockAttachmentContent:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          type: object
+          required: [mock_file, attachment]
+          properties:
+            mock_file:
+              const: true
+            attachment:
+              $ref: '#/components/schemas/Attachment'
+    ChatBootstrap:
+      type: object
+      required: [project, operator, support_levels]
+      properties:
+        project:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        operator:
+          $ref: '#/components/schemas/ServiceAuthContext'
+        support_levels:
+          type: array
+          items:
+            type: object
+            required: [id, title, color]
+            properties:
+              id:
+                $ref: '#/components/schemas/SupportLevel'
+              title:
+                type: string
+              color:
+                type: string
+    ChatBootstrapResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ChatBootstrap'
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+        currency:
+          const: IRR
+    OrderStatus:
+      type: string
+      enum: [pending, paid, processing, shipped, delivered, cancelled]
+    PaymentStatus:
+      type: string
+      enum: [pending, paid, failed, refunded]
+    OrderLine:
+      type: object
+      required: [product_id, title, variant_title, quantity, unit_price]
+      properties:
+        product_id:
+          type: string
+        title:
+          type: string
+        variant_title:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          $ref: '#/components/schemas/Money'
+    Order:
+      type: object
+      required: [id, code, customer_name, status, payment_status, total, created_at, updated_at, deleted_at, lines]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        customer_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        payment_status:
+          $ref: '#/components/schemas/PaymentStatus'
+        total:
+          $ref: '#/components/schemas/Money'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+    OrderResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/Order'
+    OrderPageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          type: object
+          required: [items, next_cursor, has_more]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            next_cursor:
+              type: [string, 'null']
+            has_more:
+              type: boolean
+    ProductVariant:
+      type: object
+      required: [id, title, sku, price, inventory_quantity]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        sku:
+          type: string
+        price:
+          $ref: '#/components/schemas/Money'
+        inventory_quantity:
+          type: integer
+    Product:
+      type: object
+      required: [id, title, slug, status, price, inventory_quantity, variants, updated_at, deleted_at]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [active, draft, archived]
+        price:
+          $ref: '#/components/schemas/Money'
+        inventory_quantity:
+          type: integer
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+    ProductResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/Product'
+    ProductPageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          type: object
+          required: [items, next_cursor, has_more]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            next_cursor:
+              type: [string, 'null']
+            has_more:
+              type: boolean
+    ShopDashboard:
+      type: object
+      required: [today_sales, today_orders, pending_orders, low_stock_products, updated_at]
+      properties:
+        today_sales:
+          $ref: '#/components/schemas/Money'
+        today_orders:
+          type: integer
+        pending_orders:
+          type: integer
+        low_stock_products:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    ShopDashboardResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/ShopDashboard'
+    AccountingDocumentType:
+      type: string
+      enum: [invoice, receipt, payment, journal]
+    AccountingDocumentStatus:
+      type: string
+      enum: [draft, confirmed, cancelled]
+    AccountingDocument:
+      type: object
+      required: [id, code, type, status, counterparty_name, total, issued_at, updated_at, deleted_at, description]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        type:
+          $ref: '#/components/schemas/AccountingDocumentType'
+        status:
+          $ref: '#/components/schemas/AccountingDocumentStatus'
+        counterparty_name:
+          type: string
+        total:
+          $ref: '#/components/schemas/Money'
+        issued_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: [string, 'null']
+          format: date-time
+        description:
+          type: string
+    AccountingDocumentResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/AccountingDocument'
+    AccountingDocumentPageResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          type: object
+          required: [items, next_cursor, has_more]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountingDocument'
+            next_cursor:
+              type: [string, 'null']
+            has_more:
+              type: boolean
+    AccountBalance:
+      type: object
+      required: [account_id, title, balance, updated_at]
+      properties:
+        account_id:
+          type: string
+        title:
+          type: string
+        balance:
+          $ref: '#/components/schemas/Money'
+        updated_at:
+          type: string
+          format: date-time
+    AccountingDashboard:
+      type: object
+      required: [total_receivable, total_payable, current_balance, documents_count, balances, updated_at]
+      properties:
+        total_receivable:
+          $ref: '#/components/schemas/Money'
+        total_payable:
+          $ref: '#/components/schemas/Money'
+        current_balance:
+          $ref: '#/components/schemas/Money'
+        documents_count:
+          type: integer
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountBalance'
+        updated_at:
+          type: string
+          format: date-time
+    AccountingDashboardResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          const: true
+        data:
+          $ref: '#/components/schemas/AccountingDashboard'

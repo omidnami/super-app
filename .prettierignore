@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.expo/
+planet/
+support-hub/
+docs/
+package-lock.json
+apps/mobile/assets/

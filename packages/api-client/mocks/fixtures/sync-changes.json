@@ -1,0 +1,29 @@
+[
+  {
+    "entity": "conversation",
+    "id": "conv_1001",
+    "op": "upsert",
+    "version": 3,
+    "updated_at": "2026-11-24T10:42:00.000Z",
+    "deleted_at": null,
+    "data": null
+  },
+  {
+    "entity": "message",
+    "id": "msg_2003",
+    "op": "upsert",
+    "version": 1,
+    "updated_at": "2026-11-24T10:42:00.000Z",
+    "deleted_at": null,
+    "data": null
+  },
+  {
+    "entity": "conversation",
+    "id": "conv_1002",
+    "op": "upsert",
+    "version": 2,
+    "updated_at": "2026-11-24T09:18:00.000Z",
+    "deleted_at": null,
+    "data": null
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "name": "@superapp/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./native": "./native/index.ts",
+    "./web": "./web/index.ts"
+  },
+  "dependencies": {
+    "@superapp/auth": "0.1.0",
+    "@superapp/design-tokens": "0.1.0",
+    "@superapp/domain": "0.1.0",
+    "@superapp/theme": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-native": "0.88.1"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

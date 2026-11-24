@@ -1,0 +1,12 @@
+{
+  "name": "@superapp/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./mocks": "./mocks/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test mocks/index.test.mjs"
+  }
+}
