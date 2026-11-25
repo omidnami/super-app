@@ -79,9 +79,13 @@ function canonicalSignature(message: CanonicalMessage, conversation: Conversatio
   ])
 }
 
+function isSynthetic(message: CanonicalMessage) {
+  return message.id.startsWith('hub_')
+}
+
 function preferDuplicate(first: CanonicalMessage, second: CanonicalMessage) {
-  const firstSynthetic = first.id.startsWith('hub_')
-  const secondSynthetic = second.id.startsWith('hub_')
+  const firstSynthetic = isSynthetic(first)
+  const secondSynthetic = isSynthetic(second)
   if (firstSynthetic !== secondSynthetic) return firstSynthetic ? second : first
   return preferMessage(first, second)
 }
@@ -101,7 +105,11 @@ export function mergeCanonicalMessages(
       : undefined
     const signature = conversation ? canonicalSignature(candidate, conversation) : null
     const signatureMatch = signature ? bySignature.get(signature) : undefined
-    const existing = [byId.get(candidate.id), mutationMatch, signatureMatch]
+    const semanticMatch =
+      signatureMatch && (isSynthetic(candidate) || isSynthetic(signatureMatch))
+        ? signatureMatch
+        : undefined
+    const existing = [byId.get(candidate.id), mutationMatch, semanticMatch]
       .filter((message): message is CanonicalMessage => Boolean(message))
       .reduce<CanonicalMessage | undefined>((selected, message) => {
         if (!selected) return message

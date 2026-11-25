@@ -635,6 +635,37 @@ describe('canonical message helpers', () => {
     expect(hubMessageSignature(incomingMessage)).toBe(hubMessageSignature({ ...incomingMessage }))
   })
 
+  it('keeps distinct canonical messages with identical content while removing a synthetic match', () => {
+    const first = canonicalMessage('canonical_1', {
+      text: 'محتوای یکسان',
+      sent_at: '2026-11-25T10:03:00.000Z',
+    })
+    const second = canonicalMessage('canonical_2', {
+      text: first.text,
+      sent_at: first.sent_at,
+    })
+    const synthetic = normalizeHubMessage(
+      {
+        ...incomingMessage,
+        text: first.text,
+        timestamp: Date.parse(first.sent_at),
+      },
+      conversation,
+      'op_42',
+    )!
+
+    expect(
+      mergeCanonicalMessages([first, second, synthetic], [], conversation).map(
+        (message) => message.id,
+      ),
+    ).toEqual(['canonical_1', 'canonical_2'])
+    expect(
+      mergeCanonicalMessages([synthetic], [first, second], conversation).map(
+        (message) => message.id,
+      ),
+    ).toEqual(['canonical_1', 'canonical_2'])
+  })
+
   it('deduplicates by canonical id and client mutation id and sorts chronologically', () => {
     const clientMutationId = generateClientMutationId()
     const optimistic = createOptimisticMessage(
