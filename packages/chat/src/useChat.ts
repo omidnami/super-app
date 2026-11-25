@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PlanetApiError } from '@superapp/api-client'
 import type {
+  Attachment,
   CanonicalMessage,
   DeliveryStatus,
   MessageListQuery,
@@ -14,6 +15,7 @@ import {
   hubMessageSignature,
   mergeCanonicalMessages,
   normalizeHubMessage,
+  sanitizeAttachment,
 } from './messages'
 import type {
   ChatDataSource,
@@ -138,8 +140,15 @@ export function useChat({
     ): Promise<{ page: Paginated<CanonicalMessage>; source: ChatDataSource }> => {
       const isStale = () => requestGeneration !== historyGenerationRef.current || signal.aborted
       try {
-        const page = await api.listMessages(conversation.id, query, { accessToken, signal })
+        const remotePage = await api.listMessages(conversation.id, query, { accessToken, signal })
         if (isStale()) throw ABORTED
+        const page = {
+          ...remotePage,
+          items: remotePage.items.map((message) => ({
+            ...message,
+            attachment: sanitizeAttachment(message.attachment),
+          })),
+        }
         if (cache) {
           try {
             await cache.saveMessages(ownerId, conversation.id, page.items, undefined)
@@ -157,9 +166,18 @@ export function useChat({
         ) {
           throw requestError
         }
-        const page = await cache.listMessages(ownerId, conversation.id, query)
+        const cached = await cache.listMessages(ownerId, conversation.id, query)
         if (isStale()) throw ABORTED
-        return { page, source: 'cache' }
+        return {
+          page: {
+            ...cached,
+            items: cached.items.map((message) => ({
+              ...message,
+              attachment: sanitizeAttachment(message.attachment),
+            })),
+          },
+          source: 'cache',
+        }
       }
     },
     [accessToken, api, cache, conversation.id, ownerId],
@@ -312,8 +330,8 @@ export function useChat({
   const clearError = useCallback(() => setError(null), [])
 
   const send = useCallback(
-    async (text: string): Promise<ChatSendResult> => {
-      if (!text.trim()) {
+    async (text: string, attachment?: Attachment): Promise<ChatSendResult> => {
+      if (!text.trim() && !attachment) {
         const message = 'متن پیام نمی‌تواند خالی باشد.'
         setError(message)
         return { ok: false, code: 'EMPTY' }
@@ -343,6 +361,7 @@ export function useChat({
         text,
         clientMutationId,
         sentAt,
+        attachment || null,
       )
       const wireMessage = toHubMessage(optimistic, conversation)
       localSignaturesRef.current.add(hubMessageSignature(wireMessage))
@@ -356,7 +375,10 @@ export function useChat({
         setSendActive(clientMutationId, false)
         if (ack.status) {
           if (ack.canonical) {
-            const canonical = ack.canonical
+            const canonical = {
+              ...ack.canonical,
+              attachment: sanitizeAttachment(ack.canonical.attachment),
+            }
             void persistCanonical(conversation.id, [canonical])
             updateMessages((current) =>
               mergeCanonicalMessages(

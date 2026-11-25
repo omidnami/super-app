@@ -10,11 +10,18 @@ import {
   type ScrollViewInstance,
 } from 'react-native'
 import type { ConversationApi } from '@superapp/api-client'
-import type { CanonicalMessage, Conversation, DeliveryStatus } from '@superapp/chat-contracts'
+import type {
+  Attachment,
+  CanonicalMessage,
+  Conversation,
+  DeliveryStatus,
+} from '@superapp/chat-contracts'
 import { type MessageCache, useChat } from '@superapp/chat'
 import { conversationTitle } from '@superapp/conversation-inbox'
+import { canSendVoice, formatFileSize, useMediaUpload, type MediaFile } from '@superapp/media'
 import { useTheme } from '@superapp/theme'
 import { Badge, Button } from './primitives'
+import { AttachmentPicker, FileBubble, UploadProgress, VoiceRecorder } from './media'
 import { EmptyState, ErrorState, OfflineBanner, Skeleton } from './feedback'
 
 export interface ChatScreenProps {
@@ -103,12 +110,14 @@ export function MessageComposer({
   onSend,
   disabled,
   sending,
+  allowEmpty = false,
 }: {
   value: string
   onChangeText: (value: string) => void
   onSend: () => void
   disabled: boolean
   sending: boolean
+  allowEmpty?: boolean
 }) {
   const { tokens } = useTheme()
   const tooLong = value.length > 4000
@@ -140,7 +149,7 @@ export function MessageComposer({
           label="ارسال"
           onPress={onSend}
           loading={sending}
-          disabled={disabled || sending || !value.trim() || tooLong}
+          disabled={disabled || sending || (!allowEmpty && !value.trim()) || tooLong}
         />
       </View>
       {tooLong ? (
@@ -156,9 +165,21 @@ export function MessageComposer({
   )
 }
 
-export function ChatBubble({ message }: { message: CanonicalMessage }) {
+export function ChatBubble({
+  message,
+  media,
+}: {
+  message: CanonicalMessage
+  media?: {
+    api: ConversationApi
+    conversationId: string
+    accessToken?: string
+    isOnline: boolean
+  }
+}) {
   const { tokens } = useTheme()
   const own = message.sender === 'operator'
+  const contentLabel = message.text || message.attachment?.file_name || 'پیام'
   const time = new Intl.DateTimeFormat('fa-IR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -167,7 +188,7 @@ export function ChatBubble({ message }: { message: CanonicalMessage }) {
   return (
     <View
       accessible
-      accessibilityLabel={`${own ? 'شما' : 'مشتری'}: ${message.text}`}
+      accessibilityLabel={`${own ? 'شما' : 'مشتری'}: ${contentLabel}`}
       style={[
         styles.bubble,
         {
@@ -177,14 +198,25 @@ export function ChatBubble({ message }: { message: CanonicalMessage }) {
         },
       ]}
     >
-      <Text
-        style={{
-          ...tokens.typography.body,
-          color: own ? tokens.color.onPrimary : tokens.color.textPrimary,
-        }}
-      >
-        {message.text}
-      </Text>
+      {message.attachment && media ? (
+        <FileBubble
+          key={message.attachment.id}
+          attachment={message.attachment}
+          api={media.api}
+          conversationId={media.conversationId}
+          accessToken={media.accessToken}
+          isOnline={media.isOnline}
+        />
+      ) : message.text ? (
+        <Text
+          style={{
+            ...tokens.typography.body,
+            color: own ? tokens.color.onPrimary : tokens.color.textPrimary,
+          }}
+        >
+          {message.text}
+        </Text>
+      ) : null}
       <View style={styles.bubbleMeta}>
         <Text
           style={{
@@ -223,6 +255,18 @@ export function ChatScreen({
   const { tokens } = useTheme()
   const chat = useChat({ conversation, api, ownerId, operatorId, accessToken, cache, isOnline })
   const [text, setText] = useState('')
+  const [pendingFile, setPendingFile] = useState<MediaFile | null>(null)
+  const [readyAttachment, setReadyAttachment] = useState<Attachment | null>(null)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const upload = useMediaUpload({
+    api,
+    conversationId: conversation.id,
+    ownerId,
+    accessToken,
+    isOnline,
+    source: conversation.source,
+    onUploaded: setReadyAttachment,
+  })
   const scrollRef = useRef<ScrollViewInstance>(null)
 
   useEffect(() => {
@@ -230,8 +274,20 @@ export function ChatScreen({
   }, [chat.messages.length, chat.isSending])
 
   const submit = async () => {
-    const result = await chat.send(text)
-    if (result.ok) setText('')
+    let attachment = readyAttachment
+    if (pendingFile && !attachment) {
+      const uploaded = await upload.upload(pendingFile)
+      if (!uploaded.ok || !uploaded.attachment) return
+      attachment = uploaded.attachment
+      setReadyAttachment(attachment)
+    }
+    const result = await chat.send(text, attachment || undefined)
+    if (result.ok) {
+      setText('')
+      setPendingFile(null)
+      setReadyAttachment(null)
+      upload.reset()
+    }
   }
 
   return (
@@ -284,19 +340,81 @@ export function ChatScreen({
         ) : chat.messages.length === 0 ? (
           <EmptyState title="هنوز پیامی نیست" description="اولین پیام این گفتگو را ارسال کنید." />
         ) : (
-          chat.messages.map((message) => <ChatBubble key={message.id} message={message} />)
+          chat.messages.map((message) => (
+            <ChatBubble
+              key={message.id}
+              message={message}
+              media={{ api, conversationId: conversation.id, accessToken, isOnline }}
+            />
+          ))
         )}
         {chat.error && chat.messages.length > 0 ? (
           <ErrorState message={chat.error} onRetry={() => void chat.retry()} />
         ) : null}
       </ScrollView>
 
+      <View style={{ gap: tokens.spacing.xs }}>
+        <View style={styles.mediaControls}>
+          <AttachmentPicker
+            disabled={chat.isOffline || upload.status === 'uploading'}
+            onSelect={(file) => {
+              setPendingFile(file)
+              setReadyAttachment(null)
+              setMediaError(null)
+              upload.reset()
+            }}
+            onError={(error) => setMediaError(error.message)}
+          />
+          {canSendVoice(conversation.source) ? (
+            <VoiceRecorder
+              disabled={chat.isOffline || upload.status === 'uploading'}
+              onRecorded={(file) => {
+                setPendingFile(file)
+                setReadyAttachment(null)
+                setMediaError(null)
+                upload.reset()
+              }}
+              onError={(error) => setMediaError(error.message)}
+            />
+          ) : null}
+        </View>
+        <UploadProgress
+          status={upload.status}
+          progress={upload.progress}
+          error={upload.error || mediaError || undefined}
+          onCancel={upload.cancel}
+          onRetry={() => void upload.retry()}
+        />
+        {pendingFile ? (
+          <View style={[styles.pendingFile, { borderColor: tokens.color.border }]}>
+            <Text
+              numberOfLines={1}
+              style={{ ...tokens.typography.caption, color: tokens.color.textSecondary, flex: 1 }}
+            >
+              {pendingFile.name} · {formatFileSize(pendingFile.size)}
+            </Text>
+            <Button
+              label="حذف"
+              variant="ghost"
+              size="sm"
+              disabled={upload.status === 'uploading'}
+              onPress={() => {
+                setPendingFile(null)
+                setReadyAttachment(null)
+                upload.reset()
+              }}
+            />
+          </View>
+        ) : null}
+      </View>
+
       <MessageComposer
         value={text}
         onChangeText={setText}
         onSend={() => void submit()}
         disabled={chat.isOffline}
-        sending={chat.isSending}
+        sending={chat.isSending || upload.status === 'uploading'}
+        allowEmpty={Boolean(pendingFile)}
       />
     </KeyboardAvoidingView>
   )
@@ -327,6 +445,15 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  mediaControls: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pendingFile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+  },
   bubble: { maxWidth: '85%', padding: 12, gap: 6 },
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
 })

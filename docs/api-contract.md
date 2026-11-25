@@ -545,7 +545,7 @@ Response:
 ### ۱۲.۱. آپلود
 
 ```http
-POST /api/v1/chat/attachments
+POST /api/v1/chat/attachments?conversation_id={conversation_id}
 Authorization: Bearer <MESSAGING_ACCESS_TOKEN>
 Content-Type: application/json
 ```
@@ -586,11 +586,11 @@ Response:
 ### ۱۲.۲. دریافت metadata و محتوا
 
 ```http
-GET /api/v1/chat/attachments/{attachment_id}
-GET /api/v1/chat/attachments/{attachment_id}/content
+GET /api/v1/chat/attachments/{attachment_id}?conversation_id={conversation_id}
+GET /api/v1/chat/attachments/{attachment_id}/content?conversation_id={conversation_id}
 ```
 
-Mock برای `content` یک شیء شبیه‌سازی‌شده برمی‌گرداند؛ Production فایل واقعی را Stream می‌کند.
+Mock برای `content` یک Blob شبیه‌سازی‌شده همراه metadata برمی‌گرداند؛ Production فایل واقعی را Stream می‌کند. مجوز Conversation در هر سه Endpoint بررسی می‌شود و URL موقت Provider نباید در Message یا SQLite ذخیره شود.
 
 ---
 

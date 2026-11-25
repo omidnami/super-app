@@ -659,6 +659,7 @@ packages/
   auth/
   chat/
   conversation-inbox/
+  media/
   hub-client/
   local-db/
   ui/

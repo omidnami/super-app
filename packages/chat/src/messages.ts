@@ -5,6 +5,10 @@ import type {
   HubMessage,
 } from '@superapp/chat-contracts'
 
+export function sanitizeAttachment(attachment: Attachment | null): Attachment | null {
+  return attachment ? { ...attachment, url: null } : null
+}
+
 function attachmentSignature(attachment: HubMessage['file']) {
   if (typeof attachment === 'string') return attachment
   if (!attachment) return null
@@ -161,7 +165,7 @@ export function normalizeHubMessage(
   }
   const sentAt = timestamp(message.timestamp)
   if (!sentAt) return null
-  const attachment: Attachment | null = typeof message.file === 'string' ? null : message.file
+  const attachment = sanitizeAttachment(typeof message.file === 'string' ? null : message.file)
 
   return {
     id: `hub_${signatureHash(hubMessageSignature(message))}`,
@@ -185,6 +189,7 @@ export function createOptimisticMessage(
   text: string,
   clientMutationId: string,
   sentAt = new Date().toISOString(),
+  attachment: Attachment | null = null,
 ): CanonicalMessage {
   return {
     id: `optimistic:${clientMutationId}`,
@@ -193,7 +198,7 @@ export function createOptimisticMessage(
     sender: 'operator',
     sender_id: ownerId,
     text,
-    attachment: null,
+    attachment: sanitizeAttachment(attachment),
     sent_at: sentAt,
     created_at: sentAt,
     updated_at: sentAt,

@@ -714,6 +714,40 @@
   font-size: 12px;
 }
 
+.chat-media-controls,
+.chat-media-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-media-controls {
+  flex-direction: column;
+  padding: 0 10px;
+}
+
+.chat-media-buttons {
+  flex-wrap: wrap;
+}
+
+.chat-pending-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+  padding: 0 8px;
+}
+
+.chat-pending-file span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
 .chat-emoji {
   position: relative;
 }
@@ -743,5 +777,221 @@
   .chat-composer textarea {
     flex-basis: 100%;
     order: -1;
+  }
+}
+
+.chat-attachment-picker {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.chat-upload-progress {
+  width: 100%;
+  max-inline-size: 360px;
+  display: grid;
+  gap: 8px;
+}
+
+.chat-upload-progress-header,
+.chat-upload-progress-actions,
+.chat-file-bubble-header,
+.chat-file-bubble-status,
+.chat-voice-recorder,
+.chat-voice-recorder-status,
+.chat-voice-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-upload-progress-header {
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.chat-upload-progress-track {
+  block-size: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.chat-upload-progress-fill {
+  display: block;
+  block-size: 100%;
+  transition: inline-size 180ms ease;
+}
+
+.chat-upload-progress p,
+.chat-voice-recorder-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.chat-upload-progress-actions {
+  justify-content: flex-start;
+}
+
+.chat-file-bubble {
+  inline-size: min(100%, 420px);
+  max-inline-size: 85%;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.chat-file-bubble-header {
+  align-items: flex-start;
+  min-inline-size: 0;
+}
+
+.chat-file-bubble-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.chat-file-bubble-heading {
+  flex: 1;
+  min-inline-size: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.chat-file-bubble-name,
+.chat-voice-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-file-bubble-name {
+  font-size: 14px;
+}
+
+.chat-file-bubble-meta,
+.chat-file-bubble-status,
+.chat-voice-player-status {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.chat-file-bubble-status {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.chat-file-preview,
+.chat-file-video {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: 320px;
+}
+
+.chat-file-preview {
+  inline-size: 100%;
+  object-fit: contain;
+}
+
+.chat-file-video {
+  inline-size: 100%;
+}
+
+.chat-file-download {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding-inline: 14px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.chat-voice-recorder {
+  flex-wrap: wrap;
+  max-inline-size: 100%;
+}
+
+.chat-voice-recorder-status {
+  min-inline-size: 120px;
+  font-size: 12px;
+}
+
+.chat-voice-recorder-duration {
+  min-inline-size: 42px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.chat-voice-recorder-error {
+  flex-basis: 100%;
+}
+
+.chat-recording-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  animation: chat-recording-pulse 1s ease-in-out infinite;
+}
+
+.chat-voice-player {
+  inline-size: 100%;
+  min-inline-size: 0;
+  direction: rtl;
+}
+
+.chat-voice-player-button {
+  flex-shrink: 0;
+}
+
+.chat-voice-player-content {
+  flex: 1;
+  min-inline-size: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.chat-attachment-picker button:focus-visible,
+.chat-upload-progress button:focus-visible,
+.chat-file-bubble button:focus-visible,
+.chat-file-download:focus-visible,
+.chat-voice-recorder button:focus-visible,
+.chat-voice-player button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@keyframes chat-recording-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-file-bubble {
+    max-inline-size: 100%;
+  }
+
+  .chat-voice-recorder-status {
+    flex-basis: 100%;
+    min-inline-size: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-upload-progress-fill {
+    transition: none;
+  }
+
+  .chat-recording-dot {
+    animation: none;
   }
 }

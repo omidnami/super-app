@@ -5,6 +5,7 @@ export {
   hubMessageSignature,
   mergeCanonicalMessages,
   normalizeHubMessage,
+  sanitizeAttachment,
 } from './messages'
 export type {
   ChatController,

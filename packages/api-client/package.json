@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./media": "./src/media.ts",
     "./mocks": "./mocks/index.mjs"
   },
   "dependencies": {

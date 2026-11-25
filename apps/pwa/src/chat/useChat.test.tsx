@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ServiceSession } from '@superapp/auth'
 import type {
+  Attachment,
   CanonicalMessage,
   Conversation,
   HubMessage,
@@ -171,6 +172,37 @@ const incomingMessage: HubMessage = {
 }
 
 describe('useChat sends', () => {
+  it('sends attachment-only messages without changing the seven-field Hub contract', async () => {
+    const attachment: Attachment = {
+      id: 'att_1',
+      provider: 'planet',
+      type: 'photo',
+      file_name: 'photo.jpg',
+      mime_type: 'image/jpeg',
+      file_size: 1024,
+      duration: null,
+      url: 'https://temporary-provider.example/file',
+      created_at: '2026-11-25T10:00:00.000Z',
+    }
+    const hub = createMockHubTransport()
+    const send = vi.spyOn(hub.transport, 'send')
+    const { result } = renderChat({ hub })
+    await waitForReady(result)
+
+    await act(async () => {
+      await result.current.send('', attachment)
+    })
+
+    const [wireMessage] = send.mock.calls[0]!
+    expect(Object.keys(wireMessage)).toHaveLength(7)
+    expect(wireMessage.file).toEqual({ ...attachment, url: null })
+    expect(result.current.messages[0]).toMatchObject({
+      text: '',
+      attachment: { ...attachment, url: null },
+      delivery_status: 'sent',
+    })
+  })
+
   it('replaces an optimistic message with the ACK canonical message and keeps context local', async () => {
     const cache = createCache()
     const { hub, result } = renderChat({ cache })

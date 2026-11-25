@@ -1,5 +1,6 @@
 import type { ConversationApi } from '@superapp/api-client'
 import type {
+  Attachment,
   CanonicalMessage,
   Conversation,
   MessageListQuery,
@@ -52,7 +53,7 @@ export interface UseChatResult {
   isOffline: boolean
   loadMore: () => Promise<void>
   retry: () => Promise<void>
-  send: (text: string) => Promise<ChatSendResult>
+  send: (text: string, attachment?: Attachment) => Promise<ChatSendResult>
   clearError: () => void
 }
 

@@ -126,6 +126,7 @@ npm run build
 |---|---|
 | Auth | `@superapp/auth` |
 | Chat | `@superapp/chat` |
+| Media | `@superapp/media` |
 | Conversation Inbox | `@superapp/conversation-inbox` |
 | Hub Client | `@superapp/hub-client` |
 | Local DB | `@superapp/local-db` |

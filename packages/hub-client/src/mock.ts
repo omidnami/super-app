@@ -82,7 +82,7 @@ export function createMockHubTransport() {
           sender: message.sender,
           sender_id: context.senderId,
           text: message.text,
-          attachment: null,
+          attachment: typeof message.file === 'string' ? null : message.file,
           sent_at: sentAt,
           created_at: sentAt,
           updated_at: sentAt,

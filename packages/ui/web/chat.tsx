@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ConversationApi } from '@superapp/api-client'
-import type { CanonicalMessage, Conversation, DeliveryStatus } from '@superapp/chat-contracts'
+import type {
+  Attachment,
+  CanonicalMessage,
+  Conversation,
+  DeliveryStatus,
+} from '@superapp/chat-contracts'
 import { type MessageCache, useChat } from '@superapp/chat'
 import { conversationTitle } from '@superapp/conversation-inbox'
+import { canSendVoice, formatFileSize, useMediaUpload, type MediaFile } from '@superapp/media'
 import { useTheme } from '@superapp/theme'
 import { Badge, Button } from './primitives'
+import { AttachmentPicker, FileBubble, UploadProgress, VoiceRecorder } from './media'
 import { EmptyState, ErrorState, OfflineBanner, Skeleton } from './feedback'
 
 export interface ChatScreenProps {
@@ -96,12 +103,14 @@ export function MessageComposer({
   onSend,
   disabled,
   sending,
+  allowEmpty = false,
 }: {
   value: string
   onChangeText: (value: string) => void
   onSend: () => void
   disabled: boolean
   sending: boolean
+  allowEmpty?: boolean
 }) {
   const { tokens } = useTheme()
   const tooLong = value.length > 4000
@@ -134,7 +143,7 @@ export function MessageComposer({
           label="ارسال"
           onPress={onSend}
           loading={sending}
-          disabled={disabled || sending || !value.trim() || tooLong}
+          disabled={disabled || sending || (!allowEmpty && !value.trim()) || tooLong}
         />
       </div>
       {tooLong ? (
@@ -150,9 +159,21 @@ export function MessageComposer({
   )
 }
 
-export function ChatBubble({ message }: { message: CanonicalMessage }) {
+export function ChatBubble({
+  message,
+  media,
+}: {
+  message: CanonicalMessage
+  media?: {
+    api: ConversationApi
+    conversationId: string
+    accessToken?: string
+    isOnline: boolean
+  }
+}) {
   const { tokens } = useTheme()
   const own = message.sender === 'operator'
+  const contentLabel = message.text || message.attachment?.file_name || 'پیام'
   const time = new Intl.DateTimeFormat('fa-IR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -160,7 +181,7 @@ export function ChatBubble({ message }: { message: CanonicalMessage }) {
 
   return (
     <article
-      aria-label={`${own ? 'شما' : 'مشتری'}: ${message.text}`}
+      aria-label={`${own ? 'شما' : 'مشتری'}: ${contentLabel}`}
       className={`chat-bubble ${own ? 'chat-bubble-own' : ''}`}
       style={{
         background: own ? tokens.color.primary : tokens.color.surfaceMuted,
@@ -168,7 +189,18 @@ export function ChatBubble({ message }: { message: CanonicalMessage }) {
         borderRadius: tokens.radius.lg,
       }}
     >
-      <p>{message.text}</p>
+      {message.attachment && media ? (
+        <FileBubble
+          key={message.attachment.id}
+          attachment={message.attachment}
+          api={media.api}
+          conversationId={media.conversationId}
+          accessToken={media.accessToken}
+          isOnline={media.isOnline}
+        />
+      ) : message.text ? (
+        <p>{message.text}</p>
+      ) : null}
       <div className="chat-bubble-meta">
         <span style={{ opacity: 0.8 }}>{time}</span>
         {own ? <MessageStatus status={message.delivery_status} inverse /> : null}
@@ -200,6 +232,18 @@ export function ChatScreen({
   const { tokens } = useTheme()
   const chat = useChat({ conversation, api, ownerId, operatorId, accessToken, cache, isOnline })
   const [text, setText] = useState('')
+  const [pendingFile, setPendingFile] = useState<MediaFile | null>(null)
+  const [readyAttachment, setReadyAttachment] = useState<Attachment | null>(null)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const upload = useMediaUpload({
+    api,
+    conversationId: conversation.id,
+    ownerId,
+    accessToken,
+    isOnline,
+    source: conversation.source,
+    onUploaded: setReadyAttachment,
+  })
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -207,8 +251,20 @@ export function ChatScreen({
   }, [chat.messages.length, chat.isSending])
 
   const submit = async () => {
-    const result = await chat.send(text)
-    if (result.ok) setText('')
+    let attachment = readyAttachment
+    if (pendingFile && !attachment) {
+      const uploaded = await upload.upload(pendingFile)
+      if (!uploaded.ok || !uploaded.attachment) return
+      attachment = uploaded.attachment
+      setReadyAttachment(attachment)
+    }
+    const result = await chat.send(text, attachment || undefined)
+    if (result.ok) {
+      setText('')
+      setPendingFile(null)
+      setReadyAttachment(null)
+      upload.reset()
+    }
   }
 
   return (
@@ -248,10 +304,68 @@ export function ChatScreen({
         ) : chat.messages.length === 0 ? (
           <EmptyState title="هنوز پیامی نیست" description="اولین پیام این گفتگو را ارسال کنید." />
         ) : (
-          chat.messages.map((message) => <ChatBubble key={message.id} message={message} />)
+          chat.messages.map((message) => (
+            <ChatBubble
+              key={message.id}
+              message={message}
+              media={{ api, conversationId: conversation.id, accessToken, isOnline }}
+            />
+          ))
         )}
         {chat.error && chat.messages.length > 0 ? (
           <ErrorState message={chat.error} onRetry={() => void chat.retry()} />
+        ) : null}
+      </div>
+
+      <div className="chat-media-controls">
+        <div className="chat-media-buttons">
+          <AttachmentPicker
+            disabled={chat.isOffline || upload.status === 'uploading'}
+            onSelect={(file) => {
+              setPendingFile(file)
+              setReadyAttachment(null)
+              setMediaError(null)
+              upload.reset()
+            }}
+            onError={(error) => setMediaError(error.message)}
+          />
+          {canSendVoice(conversation.source) ? (
+            <VoiceRecorder
+              disabled={chat.isOffline || upload.status === 'uploading'}
+              onRecorded={(file) => {
+                setPendingFile(file)
+                setReadyAttachment(null)
+                setMediaError(null)
+                upload.reset()
+              }}
+              onError={(error) => setMediaError(error.message)}
+            />
+          ) : null}
+        </div>
+        <UploadProgress
+          status={upload.status}
+          progress={upload.progress}
+          error={upload.error || mediaError || undefined}
+          onCancel={upload.cancel}
+          onRetry={() => void upload.retry()}
+        />
+        {pendingFile ? (
+          <div className="chat-pending-file" style={{ borderColor: tokens.color.border }}>
+            <span>
+              {pendingFile.name} · {formatFileSize(pendingFile.size)}
+            </span>
+            <Button
+              label="حذف"
+              variant="ghost"
+              size="sm"
+              disabled={upload.status === 'uploading'}
+              onPress={() => {
+                setPendingFile(null)
+                setReadyAttachment(null)
+                upload.reset()
+              }}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -260,7 +374,8 @@ export function ChatScreen({
         onChangeText={setText}
         onSend={() => void submit()}
         disabled={chat.isOffline}
-        sending={chat.isSending}
+        sending={chat.isSending || upload.status === 'uploading'}
+        allowEmpty={Boolean(pendingFile)}
       />
     </section>
   )

@@ -15,6 +15,54 @@ jest.mock('expo-network', () => ({
   addNetworkStateListener: () => ({ remove: () => undefined }),
 }))
 
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: async () => ({ canceled: true }),
+}))
+
+jest.mock('expo-audio', () => ({
+  RecordingPresets: { HIGH_QUALITY: {} },
+  requestRecordingPermissionsAsync: async () => ({ granted: true }),
+  useAudioRecorder: () => ({
+    isRecording: false,
+    uri: null,
+    prepareToRecordAsync: async () => undefined,
+    record: () => undefined,
+    stop: async () => undefined,
+    getStatus: () => ({ durationMillis: 0 }),
+  }),
+  useAudioRecorderState: () => ({ durationMillis: 0, isRecording: false, hasError: false }),
+  useAudioPlayer: () => ({
+    play: () => undefined,
+    pause: () => undefined,
+    seekTo: () => undefined,
+  }),
+  useAudioPlayerStatus: () => ({ playing: false, currentTime: 0, duration: 0 }),
+}))
+
+jest.mock('expo-file-system', () => ({
+  File: class {
+    uri: string
+    constructor(_directory: unknown, name: string) {
+      this.uri = `file:///cache/${name}`
+    }
+    create() {}
+    write() {}
+  },
+  Paths: { cache: { uri: 'file:///cache/' } },
+}))
+
+jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: 'file:///cache/',
+  getInfoAsync: async () => ({ exists: false, isDirectory: false }),
+  downloadAsync: async () => ({ status: 200, uri: 'file:///cache/file' }),
+  deleteAsync: async () => undefined,
+}))
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: async () => true,
+  shareAsync: async () => undefined,
+}))
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {

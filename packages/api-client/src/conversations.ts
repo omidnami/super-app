@@ -8,6 +8,14 @@ import type {
 } from '@superapp/chat-contracts'
 import conversationFixtures from '../mocks/fixtures/conversations.json'
 import messageFixtures from '../mocks/fixtures/messages.json'
+import {
+  createMockMediaApi,
+  createPlanetMediaApi,
+  PlanetApiError,
+  type ConversationMediaApi,
+} from './media'
+
+export { PlanetApiError } from './media'
 
 const conversations = conversationFixtures as unknown as Conversation[]
 const messages = messageFixtures as unknown as CanonicalMessage[]
@@ -18,6 +26,7 @@ export interface ConversationRequestContext {
 }
 
 export interface ConversationApi {
+  media?: ConversationMediaApi
   list(
     query?: ConversationListQuery,
     context?: ConversationRequestContext,
@@ -28,16 +37,6 @@ export interface ConversationApi {
     query?: MessageListQuery,
     context?: ConversationRequestContext,
   ): Promise<MessagePage>
-}
-
-export class PlanetApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message)
-    this.name = 'PlanetApiError'
-  }
 }
 
 export interface PlanetConversationApiOptions {
@@ -82,6 +81,7 @@ export function filterConversations(items: Conversation[], query: ConversationLi
 
 export function createMockConversationApi(): ConversationApi {
   return {
+    media: createMockMediaApi(),
     async list(query = {}) {
       const filtered = filterConversations(conversations, query).sort(
         (a, b) =>
@@ -229,6 +229,7 @@ export function createPlanetConversationApi({
   }
 
   return {
+    media: createPlanetMediaApi({ baseUrl, getAccessToken, fetch: fetchImpl }),
     async list(query = {}, context) {
       const page = await request<unknown>('/api/v1/chat/conversations', query, context)
       if (!isConversationPage(page)) {
