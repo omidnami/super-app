@@ -67,6 +67,7 @@ export function useChat({
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [activeSendCount, setActiveSendCount] = useState(0)
+  const [lastDeliveredMutationId, setLastDeliveredMutationId] = useState<string | null>(null)
 
   const messagesRef = useRef<CanonicalMessage[]>([])
   const conversationRef = useRef(conversation)
@@ -194,6 +195,7 @@ export function useChat({
         activeSendsRef.current.clear()
         localSignaturesRef.current.clear()
         setActiveSendCount(0)
+        setLastDeliveredMutationId(null)
         updateMessages(() => [])
       }
       loadingMoreRef.current = false
@@ -374,6 +376,7 @@ export function useChat({
         if (!isCurrent()) return
         setSendActive(clientMutationId, false)
         if (ack.status) {
+          setLastDeliveredMutationId(clientMutationId)
           if (ack.canonical) {
             const canonical = {
               ...ack.canonical,
@@ -430,11 +433,13 @@ export function useChat({
           },
         )
       } catch {
-        if (!isCurrent()) return { ok: true, deliveryStatus: 'unknown' }
+        if (!isCurrent()) {
+          return { ok: true, deliveryStatus: 'unknown', clientMutationId }
+        }
         setSendActive(clientMutationId, false)
         updateDeliveryStatus(optimistic.id, 'unknown')
         setError(DEFAULT_SEND_ERROR)
-        return { ok: true, deliveryStatus: 'unknown' }
+        return { ok: true, deliveryStatus: 'unknown', clientMutationId }
       }
 
       const timeout = new Promise<void>((resolve) => {
@@ -452,7 +457,7 @@ export function useChat({
       const deliveryStatus =
         messagesRef.current.find((message) => message.client_mutation_id === clientMutationId)
           ?.delivery_status || 'unknown'
-      return { ok: true, deliveryStatus }
+      return { ok: true, deliveryStatus, clientMutationId }
     },
     [
       conversation,
@@ -478,6 +483,7 @@ export function useChat({
     isLoadingMore,
     isSending: activeSendCount > 0,
     isOffline: !isOnline || !isConnected,
+    lastDeliveredMutationId,
     loadMore,
     retry,
     send,

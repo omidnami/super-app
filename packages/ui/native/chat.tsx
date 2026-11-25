@@ -38,6 +38,7 @@ export interface ChatScreenProps {
   accessToken?: string
   cache?: MessageCache
   isOnline?: boolean
+  sendTimeoutMs?: number
   onBack: () => void
 }
 
@@ -258,14 +259,26 @@ export function ChatScreen({
   accessToken,
   cache,
   isOnline = true,
+  sendTimeoutMs,
   onBack,
 }: ChatScreenProps) {
   const { tokens } = useTheme()
-  const chat = useChat({ conversation, api, ownerId, operatorId, accessToken, cache, isOnline })
+  const chat = useChat({
+    conversation,
+    api,
+    ownerId,
+    operatorId,
+    accessToken,
+    cache,
+    isOnline,
+    sendTimeoutMs,
+  })
   const [text, setText] = useState('')
   const [pendingFile, setPendingFile] = useState<MediaFile | null>(null)
   const [readyAttachment, setReadyAttachment] = useState<Attachment | null>(null)
   const [mediaError, setMediaError] = useState<string | null>(null)
+  const [sendingMutationId, setSendingMutationId] = useState<string | null>(null)
+  const submittedTextRef = useRef('')
   const upload = useMediaUpload({
     api,
     conversationId: conversation.id,
@@ -275,12 +288,22 @@ export function ChatScreen({
     source: conversation.source,
     onUploaded: setReadyAttachment,
   })
+  const resetUpload = upload.reset
   const scrollRef = useRef<ScrollViewInstance>(null)
   const mediaCacheKey = createMediaCacheKey(ownerId, operatorId, conversation.id)
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true })
   }, [chat.messages.length, chat.isSending])
+
+  useEffect(() => {
+    if (!sendingMutationId || chat.lastDeliveredMutationId !== sendingMutationId) return
+    setText((current) => (current === submittedTextRef.current ? '' : current))
+    setPendingFile(null)
+    setReadyAttachment(null)
+    setSendingMutationId(null)
+    resetUpload()
+  }, [chat.lastDeliveredMutationId, sendingMutationId, resetUpload])
 
   const submit = async () => {
     let attachment = readyAttachment
@@ -290,12 +313,15 @@ export function ChatScreen({
       attachment = uploaded.attachment
       setReadyAttachment(attachment)
     }
+    submittedTextRef.current = text
     const result = await chat.send(text, attachment || undefined)
+    if (result.ok && result.clientMutationId) setSendingMutationId(result.clientMutationId)
     if (result.ok && result.deliveryStatus === 'sent') {
       setText('')
       setPendingFile(null)
       setReadyAttachment(null)
-      upload.reset()
+      setSendingMutationId(null)
+      resetUpload()
     }
   }
 
@@ -375,8 +401,9 @@ export function ChatScreen({
             onSelect={(file) => {
               setPendingFile(file)
               setReadyAttachment(null)
+              setSendingMutationId(null)
               setMediaError(null)
-              upload.reset()
+              resetUpload()
             }}
             onError={(error) => setMediaError(error.message)}
           />
@@ -387,7 +414,7 @@ export function ChatScreen({
                 setPendingFile(file)
                 setReadyAttachment(null)
                 setMediaError(null)
-                upload.reset()
+                resetUpload()
               }}
               onError={(error) => setMediaError(error.message)}
             />
@@ -416,7 +443,8 @@ export function ChatScreen({
               onPress={() => {
                 setPendingFile(null)
                 setReadyAttachment(null)
-                upload.reset()
+                setSendingMutationId(null)
+                resetUpload()
               }}
             />
           </View>

@@ -262,7 +262,8 @@ describe('useChat sends', () => {
 
     expect(result.current.messages).toEqual([canonical])
     expect(cache.saveMessages).toHaveBeenLastCalledWith('op_42', conversation.id, [canonical])
-    expect(await sending).toEqual({ ok: true, deliveryStatus: 'sent' })
+    expect(await sending).toMatchObject({ ok: true, deliveryStatus: 'sent' })
+    expect((await sending).clientMutationId).toBe(context!.clientMutationId)
     expect(result.current.isSending).toBe(false)
     expect(result.current.error).toBeNull()
   })
@@ -306,11 +307,14 @@ describe('useChat sends', () => {
     const acknowledgement = deferred<HubAck>()
     const send = vi.spyOn(hub.transport, 'send').mockReturnValue(acknowledgement.promise)
 
+    let sendResult!: Awaited<ReturnType<UseChatResult['send']>>
     await act(async () => {
-      await result.current.send('تأییدیه دیرنگ')
+      sendResult = await result.current.send('تأییدیه دیرنگ')
     })
-    expect(result.current.messages[0]?.delivery_status).toBe('unknown')
     const context = send.mock.calls[0]![1]!
+    expect(sendResult).toMatchObject({ ok: true, deliveryStatus: 'unknown' })
+    expect(sendResult.clientMutationId).toBe(context.clientMutationId)
+    expect(result.current.messages[0]?.delivery_status).toBe('unknown')
     const canonical = canonicalMessage('canonical_late', {
       client_mutation_id: context.clientMutationId,
       sender: 'operator',
@@ -321,6 +325,7 @@ describe('useChat sends', () => {
 
     act(() => acknowledgement.resolve({ status: true, canonical }))
     await waitFor(() => expect(result.current.messages).toEqual([canonical]))
+    expect(result.current.lastDeliveredMutationId).toBe(context.clientMutationId)
     expect(result.current.error).toBeNull()
     expect(send).toHaveBeenCalledTimes(1)
   })
@@ -349,7 +354,8 @@ describe('useChat sends', () => {
     await act(async () => {
       sendResult = await result.current.send('تأییدیه بدون canonical')
     })
-    expect(sendResult).toEqual({ ok: true, deliveryStatus: 'sent' })
+    expect(sendResult).toMatchObject({ ok: true, deliveryStatus: 'sent' })
+    expect(sendResult.clientMutationId).toEqual(expect.any(String))
     expect(result.current.messages[2]?.delivery_status).toBe('sent')
     expect(result.current.error).toBeNull()
     expect(send).toHaveBeenCalledTimes(3)

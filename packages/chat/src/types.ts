@@ -15,6 +15,7 @@ export interface ChatSendResult {
   ok: boolean
   code?: 'EMPTY' | 'TOO_LONG' | 'OFFLINE' | 'DISCONNECTED'
   deliveryStatus?: DeliveryStatus
+  clientMutationId?: string
 }
 
 export interface MessageCache {
@@ -53,6 +54,7 @@ export interface UseChatResult {
   isLoadingMore: boolean
   isSending: boolean
   isOffline: boolean
+  lastDeliveredMutationId: string | null
   loadMore: () => Promise<void>
   retry: () => Promise<void>
   send: (text: string, attachment?: Attachment) => Promise<ChatSendResult>
