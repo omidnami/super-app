@@ -169,8 +169,12 @@ export function useChat({
   )
 
   const persistCanonical = useCallback(
-    async (conversationId: string, items: CanonicalMessage[]) => {
+    async (conversationId: string, items: CanonicalMessage[], strict = false) => {
       if (!cache || items.length === 0) return
+      if (strict) {
+        await cache.saveMessages(ownerId, conversationId, items)
+        return
+      }
       try {
         await cache.saveMessages(ownerId, conversationId, items)
       } catch {
@@ -345,7 +349,7 @@ export function useChat({
             const batchToStore = batch.filter((event) =>
               next.some((message) => message.id === event.id),
             )
-            await persistCanonical(conversation.id, batchToStore)
+            await persistCanonical(conversation.id, batchToStore, true)
             committedBufferCount += batch.length
           }
           recordMessageMetadata(next, messageChangeMetaRef.current)
@@ -371,7 +375,7 @@ export function useChat({
             const batchToStore = batch.filter((event) =>
               next.some((message) => message.id === event.id),
             )
-            await persistCanonical(conversation.id, batchToStore)
+            await persistCanonical(conversation.id, batchToStore, true)
             committedBufferCount += batch.length
           }
           recordMessageMetadata(next, messageChangeMetaRef.current)

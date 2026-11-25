@@ -844,6 +844,39 @@ describe('useChat backlog reconciliation', () => {
     )
   })
 
+  it('does not advance the cursor when buffered event persistence fails', async () => {
+    const pending = deferred<SyncResult>()
+    const transaction = deferred<void>()
+    const backlog = createBacklogCache()
+    vi.mocked(backlog.applyChanges).mockReturnValueOnce(transaction.promise)
+    const cache = createCache()
+    vi.mocked(cache.saveMessages).mockRejectedValue(new Error('disk full'))
+    const { hub, result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([])),
+        sync: vi.fn(() => pending.promise),
+      },
+      cache: { ...cache, backlog },
+    })
+    await waitFor(() => expect(result.current.syncStatus).toBe('syncing'))
+    act(() =>
+      pending.resolve({
+        changes: [],
+        next_cursor: 'cursor_must_not_commit',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      }),
+    )
+    await waitFor(() => expect(backlog.applyChanges).toHaveBeenCalledTimes(1))
+    act(() => hub.simulateIncoming(incomingMessage))
+    act(() => transaction.resolve())
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(backlog.commitCursor).not.toHaveBeenCalled()
+    expect(result.current.messages.map((message) => message.text)).toContain(incomingMessage.text)
+    expect(result.current.isStale).toBe(true)
+  })
+
   it('fetches the missing delta after a real Hub reconnect', async () => {
     const missed = canonicalMessage('reconnected_gap', { sent_at: '2026-11-25T10:05:00.000Z' })
     const sync = vi
