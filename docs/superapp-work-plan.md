@@ -979,7 +979,7 @@ Blockerها:
 | 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۶۱ تست (۱۱ Package + ۴۷ PWA + ۳ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، فیلترها، Pagination، Adapter قابل‌تنظیم Planet، Fallback فقط شبکه، Cache با Scope اپراتور/پروژه، پاک‌سازی Logout، Tombstone در Snapshot و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
 | 2026-11-25 | STEP-09 | Done | lint، typecheck، format:check و ۸۸ تست (۱۱ Package + ۷۳ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | ChatScreen، ChatBubble، Composer، EmojiButton، MessageStatus، تاریخچه صفحه‌بندی‌شده، Optimistic Send، ACK Canonical، Dedup، Timeout نامشخص، Cache آفلاین موبایل و تبادل پیام بین دو Client آماده‌اند؛ مستند در `docs/chat.md`؛ استپ بعدی STEP-10 |
 | 2026-11-25 | STEP-10 | Done | lint، typecheck، format:check و ۱۲۹ تست (۱۱ Package + ۱۱۴ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AttachmentPicker، UploadProgress، FileBubble، VoiceRecorder/Player، آپلود و دریافت امن Planet، اعتبارسنجی نوع/حجم، Voice فقط بله، Cancel/Retry و حالت آفلاین رسانه آماده‌اند؛ مستند در `docs/media.md`؛ استپ بعدی STEP-11 |
-| 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۵۲ تست (۱۱ Package + ۱۳۷ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
+| 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۵۳ تست (۱۱ Package + ۱۳۸ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
 
 ---
 
@@ -1054,3 +1054,4 @@ Blockerها:
 | 1.20 | 2026-11-25 | یکپارچه‌سازی مسیر انتخاب File/Voice و جلوگیری از حذف رسانه جایگزین توسط ACK قدیمی |
 | 1.21 | 2026-11-25 | تکمیل STEP-11، افزودن Backlog Reconciliation، Cursor per Conversation، Merge اتمیک، Full Resync و UI وضعیت سینک |
 | 1.22 | 2026-11-25 | سخت‌سازی STEP-11: Sanitize رسانه، Commit نهایی با Buffer، حفظ Cursor و رویدادها، Snapshot کامل و Tombstone نسخه‌آگاه |
+| 1.23 | 2026-11-25 | جداسازی ذخیره Buffer از Commit Cursor و ثبت Metadata نسخه پیام‌های History/Cache |

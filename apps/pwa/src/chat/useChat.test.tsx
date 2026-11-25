@@ -139,6 +139,11 @@ function createBacklogCache() {
         state = { cursor: nextCursor, lastSyncedAt: syncedAt || null, status: 'success' }
       },
     ),
+    commitCursor: vi.fn(
+      async (_ownerId: string, _conversationId: string, nextCursor: string, syncedAt?: string) => {
+        state = { cursor: nextCursor, lastSyncedAt: syncedAt || null, status: 'success' }
+      },
+    ),
   }
 }
 
@@ -762,6 +767,12 @@ describe('useChat backlog reconciliation', () => {
       'op_42',
       conversation.id,
       expect.any(Array),
+      '',
+      serverTime,
+    )
+    expect(backlog.commitCursor).toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
       'cursor_1',
       serverTime,
     )
@@ -792,18 +803,20 @@ describe('useChat backlog reconciliation', () => {
     )
   })
 
-  it('commits the final cursor together with buffered live messages', async () => {
+  it('persists live events arriving during the final data transaction before advancing the cursor', async () => {
     const pending = deferred<SyncResult>()
+    const transaction = deferred<void>()
     const backlog = createBacklogCache()
+    vi.mocked(backlog.applyChanges).mockReturnValueOnce(transaction.promise)
+    const cache = { ...createCache(), backlog }
     const { hub, result } = renderChat({
       api: {
         ...apiWithListMessages(async () => messagePage([])),
         sync: vi.fn(() => pending.promise),
       },
-      cache: { ...createCache(), backlog },
+      cache,
     })
     await waitFor(() => expect(result.current.syncStatus).toBe('syncing'))
-    act(() => hub.simulateIncoming(incomingMessage))
     act(() =>
       pending.resolve({
         changes: [],
@@ -812,17 +825,23 @@ describe('useChat backlog reconciliation', () => {
         has_more: false,
       }),
     )
+    await waitFor(() => expect(backlog.applyChanges).toHaveBeenCalledTimes(1))
+    act(() => hub.simulateIncoming(incomingMessage))
+    act(() => transaction.resolve())
     await waitForReady(result)
 
-    const committed = backlog.applyChanges.mock.calls.at(-1)?.[2] || []
-    expect(committed).toEqual([
-      expect.objectContaining({
-        entity: 'message',
-        op: 'upsert',
-        data: expect.objectContaining({ text: incomingMessage.text }),
-      }),
+    expect(cache.saveMessages).toHaveBeenCalledWith('op_42', conversation.id, [
+      expect.objectContaining({ text: incomingMessage.text }),
     ])
-    expect(backlog.applyChanges.mock.calls.at(-1)?.[3]).toBe('cursor_with_buffer')
+    expect(backlog.commitCursor).toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
+      'cursor_with_buffer',
+      '2026-11-25T10:06:00.000Z',
+    )
+    expect(vi.mocked(cache.saveMessages).mock.invocationCallOrder.at(-1)).toBeLessThan(
+      backlog.commitCursor.mock.invocationCallOrder.at(-1)!,
+    )
   })
 
   it('fetches the missing delta after a real Hub reconnect', async () => {
@@ -949,6 +968,50 @@ describe('useChat backlog reconciliation', () => {
 
     await act(async () => result.current.retry())
     await waitFor(() => expect(result.current.messages).toEqual([kept]))
+  })
+
+  it('does not let a stale delete remove a newer message loaded from history', async () => {
+    const current = canonicalMessage('newer_history', {
+      text: 'newer',
+      updated_at: '2026-11-25T10:05:00.000Z',
+    })
+    const sync = vi
+      .fn<NonNullable<ConversationApi['sync']>>()
+      .mockResolvedValueOnce({
+        changes: [],
+        next_cursor: 'cursor_1',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        changes: [
+          {
+            entity: 'message',
+            id: current.id,
+            op: 'delete',
+            version: 1,
+            updated_at: '2026-11-25T10:04:00.000Z',
+            deleted_at: '2026-11-25T10:04:00.000Z',
+            data: null,
+          },
+        ],
+        next_cursor: 'cursor_2',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      })
+    const { result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([current])),
+        sync,
+      },
+      cache: { ...createCache(), backlog: createBacklogCache() },
+    })
+    await waitForReady(result)
+    expect(result.current.messages).toEqual([current])
+
+    await act(async () => result.current.retry())
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(2))
+    expect(result.current.messages).toEqual([current])
   })
 
   it('does not let an equal-timestamp stale delta resurrect a tombstoned message', async () => {

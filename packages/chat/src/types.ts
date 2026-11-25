@@ -42,6 +42,12 @@ export interface BacklogCache {
     nextCursor: string,
     syncedAt?: string,
   ): Promise<void>
+  commitCursor(
+    ownerId: string,
+    conversationId: string,
+    nextCursor: string,
+    syncedAt?: string,
+  ): Promise<void>
 }
 
 export interface MessageCache {

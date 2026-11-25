@@ -57,6 +57,21 @@ function changeIsNewer(change: SyncChange, existing?: MessageChangeMeta) {
   )
 }
 
+function recordMessageMetadata(
+  items: CanonicalMessage[],
+  changeMeta: Map<string, MessageChangeMeta>,
+) {
+  for (const message of items) {
+    const existing = changeMeta.get(message.id)
+    if (
+      !existing ||
+      (Date.parse(message.updated_at) || 0) > (Date.parse(existing.updatedAt) || 0)
+    ) {
+      changeMeta.set(message.id, { updatedAt: message.updated_at, version: existing?.version || 0 })
+    }
+  }
+}
+
 function applySyncChanges(
   current: CanonicalMessage[],
   changes: SyncChange[],
@@ -315,20 +330,28 @@ export function useChat({
           next.some((message) => message.id === event.id),
         )
 
+        let committedBufferCount = 0
         if (cache?.backlog && backlog.pendingCommit) {
-          const bufferedChanges: SyncChange[] = bufferedToStore.map((message) => ({
-            entity: 'message',
-            id: message.id,
-            op: 'upsert',
-            version: 0,
-            updated_at: message.updated_at,
-            deleted_at: null,
-            data: message,
-          }))
           await cache.backlog.applyChanges(
             ownerId,
             conversation.id,
-            [...backlog.pendingCommit.changes, ...bufferedChanges],
+            backlog.pendingCommit.changes,
+            backlog.cursor || '',
+            backlog.pendingCommit.syncedAt,
+          )
+          while (committedBufferCount < bufferedEventsRef.current.length) {
+            const batch = bufferedEventsRef.current.slice(committedBufferCount)
+            for (const event of batch) next = mergeCanonicalMessages(next, [event], conversation)
+            const batchToStore = batch.filter((event) =>
+              next.some((message) => message.id === event.id),
+            )
+            await persistCanonical(conversation.id, batchToStore)
+            committedBufferCount += batch.length
+          }
+          recordMessageMetadata(next, messageChangeMetaRef.current)
+          await cache.backlog.commitCursor(
+            ownerId,
+            conversation.id,
             backlog.pendingCommit.nextCursor,
             backlog.pendingCommit.syncedAt,
           )
@@ -338,7 +361,23 @@ export function useChat({
           await cache.backlog.replaceSnapshot(
             ownerId,
             conversation.id,
-            [...backlog.pendingSnapshot.messages, ...bufferedToStore],
+            backlog.pendingSnapshot.messages,
+            backlog.cursor || '',
+            backlog.pendingSnapshot.syncedAt,
+          )
+          while (committedBufferCount < bufferedEventsRef.current.length) {
+            const batch = bufferedEventsRef.current.slice(committedBufferCount)
+            for (const event of batch) next = mergeCanonicalMessages(next, [event], conversation)
+            const batchToStore = batch.filter((event) =>
+              next.some((message) => message.id === event.id),
+            )
+            await persistCanonical(conversation.id, batchToStore)
+            committedBufferCount += batch.length
+          }
+          recordMessageMetadata(next, messageChangeMetaRef.current)
+          await cache.backlog.commitCursor(
+            ownerId,
+            conversation.id,
             backlog.pendingSnapshot.nextCursor,
             backlog.pendingSnapshot.syncedAt,
           )
@@ -347,13 +386,15 @@ export function useChat({
         } else {
           backlogCursorRef.current = backlog.cursor
           if (backlog.lastSyncedAt) setLastSyncedAt(backlog.lastSyncedAt)
+          void persistCanonical(conversation.id, bufferedToStore)
         }
 
-        bufferedEventsRef.current = bufferedEventsRef.current.slice(buffered.length)
+        bufferedEventsRef.current = bufferedEventsRef.current.slice(committedBufferCount)
         initialLoadingRef.current = false
         const lateEvents = bufferedEventsRef.current
         bufferedEventsRef.current = []
         for (const event of lateEvents) next = mergeCanonicalMessages(next, [event], conversation)
+        recordMessageMetadata(next, messageChangeMetaRef.current)
         updateMessages(() => next)
         const lateToStore = lateEvents.filter((event) =>
           next.some((message) => message.id === event.id),
@@ -403,6 +444,7 @@ export function useChat({
             for (const event of buffered) {
               next = mergeCanonicalMessages(next, [event], conversation)
             }
+            recordMessageMetadata(next, messageChangeMetaRef.current)
             updateMessages(() => next)
             const bufferedToStore = buffered.filter((event) =>
               next.some((message) => message.id === event.id),
@@ -521,7 +563,9 @@ export function useChat({
         controller.signal,
       )
       if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted) return
-      updateMessages((current) => mergeCanonicalMessages(current, page.items, conversation))
+      const merged = mergeCanonicalMessages(messagesRef.current, page.items, conversation)
+      recordMessageMetadata(merged, messageChangeMetaRef.current)
+      updateMessages(() => merged)
       setNextCursor(page.next_cursor)
       setHasMore(Boolean(page.has_more && page.next_cursor))
       setDataSource(source)

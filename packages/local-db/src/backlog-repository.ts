@@ -69,6 +69,21 @@ export class BacklogRepository {
     return this.syncState.get(ownerId, datasetFor(conversationId))
   }
 
+  async commitCursor(
+    ownerId: string,
+    conversationId: string,
+    nextCursor: string,
+    syncedAt = new Date().toISOString(),
+  ): Promise<void> {
+    await this.database.transaction(async (transaction) => {
+      await new SyncStateRepository(transaction).upsert(ownerId, datasetFor(conversationId), {
+        cursor: nextCursor,
+        lastSyncedAt: syncedAt,
+        status: 'success',
+      })
+    })
+  }
+
   async applyChanges(
     ownerId: string,
     conversationId: string,

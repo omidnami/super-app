@@ -79,6 +79,16 @@ export function createMobileConversationCache(scope: string): MobileMessagingCac
         syncedAt,
       )
     },
+    async commitCursor(ownerId, conversationId, nextCursor, syncedAt) {
+      if (!active) return
+      const database = await getDatabase()
+      await new BacklogRepository(database).commitCursor(
+        ownerId,
+        conversationId,
+        nextCursor,
+        syncedAt,
+      )
+    },
   }
   const cache: MobileMessagingCache = {
     backlog,
