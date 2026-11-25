@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./backlog-repository": "./src/backlog-repository.ts",
     "./migrations": "./src/migrations.ts",
     "./migrate": "./src/migrate.ts",
     "./repositories": "./src/repositories.ts",

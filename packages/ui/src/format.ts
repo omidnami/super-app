@@ -14,3 +14,14 @@ export function formatPersianDate(value: string | Date) {
   if (Number.isNaN(date.getTime())) return '—'
   return dateFormatter.format(date)
 }
+
+export function formatPersianDateTime(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('fa-IR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}

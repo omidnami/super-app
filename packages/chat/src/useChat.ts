@@ -3,12 +3,15 @@ import { PlanetApiError } from '@superapp/api-client'
 import type {
   Attachment,
   CanonicalMessage,
+  Conversation,
   DeliveryStatus,
   MessageListQuery,
   Paginated,
+  SyncChange,
 } from '@superapp/chat-contracts'
 import { toHubMessage } from '@superapp/chat-contracts'
 import { useHubConnection, type HubAck } from '@superapp/hub-client'
+import { reconcileBacklog } from './backlog'
 import {
   createOptimisticMessage,
   generateClientMutationId,
@@ -37,6 +40,30 @@ function historyErrorMessage(error: unknown) {
     return error.message
   }
   return DEFAULT_HISTORY_ERROR
+}
+
+function applySyncChanges(
+  current: CanonicalMessage[],
+  changes: SyncChange[],
+  conversation: Conversation,
+) {
+  let next = current
+  for (const change of changes) {
+    if (change.entity !== 'message') continue
+    if (change.op === 'delete') {
+      next = next.filter((message) => message.id !== change.id)
+      continue
+    }
+    if (!change.data) continue
+    const message = change.data as CanonicalMessage
+    if (message.conversation_id !== conversation.id) continue
+    next = mergeCanonicalMessages(
+      next,
+      [{ ...message, attachment: sanitizeAttachment(message.attachment) }],
+      conversation,
+    )
+  }
+  return next
 }
 
 function isAbortError(error: unknown) {
@@ -68,6 +95,8 @@ export function useChat({
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [activeSendCount, setActiveSendCount] = useState(0)
   const [lastDeliveredMutationId, setLastDeliveredMutationId] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle')
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   const messagesRef = useRef<CanonicalMessage[]>([])
   const conversationRef = useRef(conversation)
@@ -77,6 +106,9 @@ export function useChat({
   const loadingMoreRef = useRef(false)
   const initialLoadingRef = useRef(false)
   const bufferedEventsRef = useRef<CanonicalMessage[]>([])
+  const backlogCursorRef = useRef<string | null>(null)
+  const wasConnectedRef = useRef(isConnected)
+  const hasSeenConnectionRef = useRef(isConnected)
   const localSignaturesRef = useRef(new Set<string>())
   const activeSendsRef = useRef(new Set<string>())
   const scopeKey = JSON.stringify([
@@ -194,8 +226,10 @@ export function useChat({
         scopeGenerationRef.current += 1
         activeSendsRef.current.clear()
         localSignaturesRef.current.clear()
+        backlogCursorRef.current = null
         setActiveSendCount(0)
         setLastDeliveredMutationId(null)
+        setLastSyncedAt(null)
         updateMessages(() => [])
       }
       loadingMoreRef.current = false
@@ -203,12 +237,26 @@ export function useChat({
       initialLoadingRef.current = true
       setIsLoadingMore(false)
       setStatus('loading')
+      setSyncStatus('syncing')
       setError(null)
       setDataSource(null)
       setNextCursor(null)
       setHasMore(false)
 
       try {
+        const backlog = await reconcileBacklog({
+          api,
+          conversation,
+          ownerId,
+          accessToken,
+          cache: cache?.backlog,
+          cursor: backlogCursorRef.current,
+          signal: controller.signal,
+        })
+        if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted) return
+        backlogCursorRef.current = backlog.cursor
+        if (backlog.lastSyncedAt) setLastSyncedAt(backlog.lastSyncedAt)
+
         const { page, source } = await fetchPage(
           { limit: pageSize },
           requestGeneration,
@@ -219,7 +267,11 @@ export function useChat({
         initialLoadingRef.current = false
         const buffered = bufferedEventsRef.current
         bufferedEventsRef.current = []
-        let next = mergeCanonicalMessages(messagesRef.current, page.items, conversation)
+        let next = backlog.snapshot
+          ? mergeCanonicalMessages([], backlog.snapshot, conversation)
+          : messagesRef.current
+        next = applySyncChanges(next, backlog.changes, conversation)
+        next = mergeCanonicalMessages(next, page.items, conversation)
         for (const event of buffered) next = mergeCanonicalMessages(next, [event], conversation)
         updateMessages(() => next)
         const bufferedToStore = buffered.filter((event) =>
@@ -229,6 +281,7 @@ export function useChat({
         setNextCursor(page.next_cursor)
         setHasMore(Boolean(page.has_more && page.next_cursor))
         setDataSource(source)
+        setSyncStatus(source === 'remote' ? 'success' : 'error')
         setStatus('ready')
       } catch (requestError) {
         if (
@@ -239,16 +292,64 @@ export function useChat({
           return
         }
         initialLoadingRef.current = false
+        const buffered = bufferedEventsRef.current
         bufferedEventsRef.current = []
+        const authError =
+          requestError instanceof PlanetApiError &&
+          (requestError.status === 401 || requestError.status === 403)
+        if (cache?.backlog) {
+          try {
+            const state = await cache.backlog.getState(ownerId, conversation.id)
+            const syncedAt = state?.lastSyncedAt || state?.last_synced_at
+            if (syncedAt) setLastSyncedAt(syncedAt)
+          } catch {
+            // The last known sync time is optional when the cache cannot be read.
+          }
+        }
+        if (cache && !authError) {
+          try {
+            const cached = await cache.listMessages(ownerId, conversation.id, { limit: pageSize })
+            if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted)
+              return
+            let next = cached.items.map((message) => ({
+              ...message,
+              attachment: sanitizeAttachment(message.attachment),
+            }))
+            for (const event of buffered) {
+              next = mergeCanonicalMessages(next, [event], conversation)
+            }
+            updateMessages(() => next)
+            setNextCursor(cached.next_cursor)
+            setHasMore(Boolean(cached.has_more && cached.next_cursor))
+            setDataSource('cache')
+            setSyncStatus('error')
+            setStatus('ready')
+            setError('ارتباط با Planet برقرار نشد؛ تاریخچه آفلاین نمایش داده می‌شود.')
+            return
+          } catch {
+            // Fall through to the error state when no readable cache exists.
+          }
+        }
         updateMessages(() => [])
         setNextCursor(null)
         setHasMore(false)
         setDataSource(null)
+        setSyncStatus('error')
         setError(historyErrorMessage(requestError))
         setStatus('error')
       }
     },
-    [conversation, fetchPage, pageSize, persistCanonical, updateMessages],
+    [
+      accessToken,
+      api,
+      cache,
+      conversation,
+      fetchPage,
+      ownerId,
+      pageSize,
+      persistCanonical,
+      updateMessages,
+    ],
   )
 
   useEffect(() => {
@@ -263,8 +364,18 @@ export function useChat({
       scopeGenerationRef.current += 1
       initialLoadingRef.current = false
       bufferedEventsRef.current = []
+      backlogCursorRef.current = null
     }
   }, [loadFirstPage, scopeKey])
+
+  useEffect(() => {
+    const firstConnection = !hasSeenConnectionRef.current
+    if (isConnected) hasSeenConnectionRef.current = true
+    if (isConnected && !wasConnectedRef.current && !firstConnection) {
+      void loadFirstPage(false)
+    }
+    wasConnectedRef.current = isConnected
+  }, [isConnected, loadFirstPage])
 
   useEffect(
     () =>
@@ -484,6 +595,9 @@ export function useChat({
     isSending: activeSendCount > 0,
     isOffline: !isOnline || !isConnected,
     lastDeliveredMutationId,
+    syncStatus,
+    lastSyncedAt,
+    isStale: dataSource === 'cache' || syncStatus === 'error',
     loadMore,
     retry,
     send,

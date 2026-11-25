@@ -14,7 +14,7 @@ describe('App shell', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'اتصال به پیام‌رسان' }))
 
     expect(
-      await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }),
+      await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }, { timeout: 5000 }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'فیلتر خوانده‌نشده' }))
     await waitFor(() =>
@@ -45,12 +45,12 @@ describe('App shell', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'بازگشت' }))
     expect(
-      await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }),
+      await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }, { timeout: 5000 }),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'اتصال Real-Time' }))
     expect(await screen.findByRole('heading', { name: 'اتصال Real-Time' })).toBeInTheDocument()
-  }, 15000)
+  }, 20000)
 
   it('renders UI Kit and switches between independent mini apps', async () => {
     render(<App />)

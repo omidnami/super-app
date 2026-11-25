@@ -18,6 +18,7 @@ export interface SyncChange<
 
 export interface SyncQuery extends CursorPageQuery {
   project_id?: EntityId
+  conversation_id?: EntityId
 }
 
 export interface SyncResult {

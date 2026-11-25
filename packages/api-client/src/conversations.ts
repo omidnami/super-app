@@ -5,9 +5,13 @@ import type {
   ConversationPage,
   MessageListQuery,
   MessagePage,
+  SyncChange,
+  SyncQuery,
+  SyncResult,
 } from '@superapp/chat-contracts'
 import conversationFixtures from '../mocks/fixtures/conversations.json'
 import messageFixtures from '../mocks/fixtures/messages.json'
+import syncChangeFixtures from '../mocks/fixtures/sync-changes.json'
 import {
   createMockMediaApi,
   createPlanetMediaApi,
@@ -19,6 +23,7 @@ export { PlanetApiError } from './media'
 
 const conversations = conversationFixtures as unknown as Conversation[]
 const messages = messageFixtures as unknown as CanonicalMessage[]
+const syncChanges = syncChangeFixtures as unknown as SyncChange[]
 
 export interface ConversationRequestContext {
   accessToken?: string
@@ -37,6 +42,7 @@ export interface ConversationApi {
     query?: MessageListQuery,
     context?: ConversationRequestContext,
   ): Promise<MessagePage>
+  sync?(query: SyncQuery, context?: ConversationRequestContext): Promise<SyncResult>
 }
 
 export interface PlanetConversationApiOptions {
@@ -77,6 +83,33 @@ export function filterConversations(items: Conversation[], query: ConversationLi
     if (query.unread_only && conversation.unread_count <= 0) return false
     return conversation.deleted_at === null
   })
+}
+
+function hydrateMockSyncChanges(): SyncChange[] {
+  return syncChanges.map((change) => {
+    if (change.op === 'delete') return { ...change, data: null }
+    const data =
+      change.entity === 'conversation'
+        ? conversations.find((conversation) => conversation.id === change.id)
+        : messages.find((message) => message.id === change.id)
+    return { ...change, data: data || null }
+  })
+}
+
+function matchesMockSyncScope(change: SyncChange, query: SyncQuery) {
+  if (change.entity === 'conversation') {
+    return (
+      (!query.conversation_id || change.id === query.conversation_id) &&
+      (!query.project_id ||
+        conversations.find((item) => item.id === change.id)?.project_id === query.project_id)
+    )
+  }
+  const message = messages.find((item) => item.id === change.id)
+  const conversation = conversations.find((item) => item.id === message?.conversation_id)
+  return (
+    (!query.conversation_id || message?.conversation_id === query.conversation_id) &&
+    (!query.project_id || conversation?.project_id === query.project_id)
+  )
 }
 
 export function createMockConversationApi(): ConversationApi {
@@ -128,6 +161,24 @@ export function createMockConversationApi(): ConversationApi {
         next_cursor: start > 0 ? `offset_${nextOffset}` : null,
         has_more: start > 0,
         conversation,
+      }
+    },
+
+    async sync(query = {}) {
+      const serverTime = new Date().toISOString()
+      if (query.cursor === 'mock_cursor_1') {
+        return {
+          changes: [],
+          next_cursor: 'mock_cursor_1',
+          server_time: serverTime,
+          has_more: false,
+        }
+      }
+      return {
+        changes: hydrateMockSyncChanges().filter((change) => matchesMockSyncScope(change, query)),
+        next_cursor: 'mock_cursor_1',
+        server_time: serverTime,
+        has_more: false,
       }
     },
   }
@@ -185,6 +236,84 @@ function isConversationPage(value: unknown): value is ConversationPage {
   return value.next_cursor === null
 }
 
+function isCanonicalMessage(value: unknown): value is CanonicalMessage {
+  if (!isRecord(value)) return false
+  const attachment = value.attachment
+  return (
+    typeof value.id === 'string' &&
+    typeof value.conversation_id === 'string' &&
+    isNullableString(value.client_mutation_id) &&
+    (value.sender === 'client' || value.sender === 'operator') &&
+    typeof value.sender_id === 'string' &&
+    typeof value.text === 'string' &&
+    (attachment === null || (isRecord(attachment) && isMessageAttachment(attachment))) &&
+    typeof value.sent_at === 'string' &&
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string' &&
+    isNullableString(value.deleted_at) &&
+    (value.delivery_status === 'pending' ||
+      value.delivery_status === 'sent' ||
+      value.delivery_status === 'failed' ||
+      value.delivery_status === 'unknown')
+  )
+}
+
+function isMessageAttachment(value: Record<string, unknown>) {
+  return (
+    typeof value.id === 'string' &&
+    (value.provider === 'planet' || value.provider === 'bale') &&
+    (value.type === 'photo' ||
+      value.type === 'voice' ||
+      value.type === 'audio' ||
+      value.type === 'video' ||
+      value.type === 'document') &&
+    typeof value.file_name === 'string' &&
+    typeof value.mime_type === 'string' &&
+    typeof value.file_size === 'number' &&
+    Number.isFinite(value.file_size) &&
+    value.file_size >= 0 &&
+    (value.duration === undefined ||
+      value.duration === null ||
+      (typeof value.duration === 'number' && Number.isFinite(value.duration))) &&
+    (value.url === undefined || isNullableString(value.url)) &&
+    typeof value.created_at === 'string'
+  )
+}
+
+function isSyncChange(value: unknown): value is SyncChange {
+  if (!isRecord(value)) return false
+  if (
+    (value.entity !== 'conversation' && value.entity !== 'message') ||
+    (value.op !== 'upsert' && value.op !== 'delete') ||
+    typeof value.id !== 'string' ||
+    typeof value.version !== 'number' ||
+    !Number.isInteger(value.version) ||
+    value.version < 0 ||
+    typeof value.updated_at !== 'string' ||
+    !isNullableString(value.deleted_at)
+  ) {
+    return false
+  }
+  if (value.op === 'upsert' && value.data === null) return false
+  if (value.data === null) return true
+  const data = value.data
+  if (value.entity === 'conversation') {
+    return isConversation(data) && data.id === value.id
+  }
+  return isCanonicalMessage(data) && data.id === value.id
+}
+
+function isSyncResult(value: unknown): value is SyncResult {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.changes) &&
+    value.changes.every(isSyncChange) &&
+    typeof value.next_cursor === 'string' &&
+    typeof value.server_time === 'string' &&
+    typeof value.has_more === 'boolean'
+  )
+}
+
 export function createConfiguredConversationApi(baseUrl?: string): ConversationApi {
   const normalizedBaseUrl = baseUrl?.trim()
   return normalizedBaseUrl
@@ -212,7 +341,7 @@ export function createPlanetConversationApi({
     const headers = new Headers({ Accept: 'application/json' })
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
 
-    const response = await fetchImpl(url, { headers, signal: context.signal })
+    const response = await fetchImpl(url, { method: 'GET', headers, signal: context.signal })
     if (!response.ok) {
       throw new PlanetApiError('دریافت داده از Planet ناموفق بود.', response.status)
     }
@@ -250,6 +379,13 @@ export function createPlanetConversationApi({
         query,
         context,
       )
+    },
+    async sync(query = {}, context) {
+      const result = await request<unknown>('/api/v1/chat/sync', query, context)
+      if (!isSyncResult(result)) {
+        throw new PlanetApiError('پاسخ همگام‌سازی Planet معتبر نیست.', 200)
+      }
+      return result
     },
   }
 }

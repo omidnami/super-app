@@ -28,7 +28,7 @@ import {
 import { useTheme } from '@superapp/theme'
 import { Badge, Button } from './primitives'
 import { AttachmentPicker, FileBubble, UploadProgress, VoiceRecorder } from './media'
-import { EmptyState, ErrorState, OfflineBanner, Skeleton } from './feedback'
+import { EmptyState, ErrorState, OfflineBanner, Skeleton, SyncStatusBar } from './feedback'
 
 export interface ChatScreenProps {
   conversation: Conversation
@@ -47,6 +47,11 @@ const statusLabels: Record<DeliveryStatus, string> = {
   sent: 'ارسال‌شده',
   failed: 'خطا',
   unknown: 'نامشخص',
+}
+
+export function StaleDataBadge({ stale }: { stale: boolean }) {
+  if (!stale) return null
+  return <Badge label="داده قدیمی" tone="warning" />
 }
 
 export function MessageStatus({
@@ -354,7 +359,13 @@ export function ChatScreen({
           label={chat.isOffline ? 'قطع' : 'متصل'}
           tone={chat.isOffline ? 'warning' : 'success'}
         />
+        <StaleDataBadge stale={chat.isStale} />
       </View>
+      <SyncStatusBar
+        status={chat.syncStatus}
+        lastSyncedAt={chat.lastSyncedAt || undefined}
+        onPress={() => void chat.retry()}
+      />
 
       <ScrollView
         ref={scrollRef}

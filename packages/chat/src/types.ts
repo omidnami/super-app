@@ -2,6 +2,7 @@ import type { ConversationApi } from '@superapp/api-client'
 import type {
   Attachment,
   CanonicalMessage,
+  SyncChange,
   Conversation,
   DeliveryStatus,
   MessageListQuery,
@@ -18,7 +19,33 @@ export interface ChatSendResult {
   clientMutationId?: string
 }
 
+export interface BacklogState {
+  cursor: string | null
+  lastSyncedAt?: string | null
+  last_synced_at?: string | null
+  status: string
+}
+
+export interface BacklogCache {
+  getState(ownerId: string, conversationId: string): Promise<BacklogState | null>
+  applyChanges(
+    ownerId: string,
+    conversationId: string,
+    changes: SyncChange[],
+    nextCursor: string,
+    syncedAt?: string,
+  ): Promise<void>
+  replaceSnapshot(
+    ownerId: string,
+    conversationId: string,
+    messages: CanonicalMessage[],
+    nextCursor: string,
+    syncedAt?: string,
+  ): Promise<void>
+}
+
 export interface MessageCache {
+  backlog?: BacklogCache
   listMessages(
     ownerId: string,
     conversationId: string,
@@ -55,6 +82,9 @@ export interface UseChatResult {
   isSending: boolean
   isOffline: boolean
   lastDeliveredMutationId: string | null
+  syncStatus: 'idle' | 'syncing' | 'success' | 'error'
+  lastSyncedAt: string | null
+  isStale: boolean
   loadMore: () => Promise<void>
   retry: () => Promise<void>
   send: (text: string, attachment?: Attachment) => Promise<ChatSendResult>

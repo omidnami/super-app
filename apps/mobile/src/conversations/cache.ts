@@ -1,16 +1,18 @@
 import type { ServiceSession } from '@superapp/auth'
 import type {
   CanonicalMessage,
+  Conversation,
   ConversationListQuery,
   MessageListQuery,
 } from '@superapp/chat-contracts'
-import type { MessageCache } from '@superapp/chat'
+import type { BacklogCache, MessageCache } from '@superapp/chat'
 import {
   createConversationCacheScope,
   parseConversationCacheScope,
   type ConversationCache,
 } from '@superapp/conversation-inbox'
 import {
+  BacklogRepository,
   ConversationRepository,
   MessageRepository,
   createExpoDatabaseFactory,
@@ -39,7 +41,46 @@ export function createMobileConversationCache(scope: string): MobileMessagingCac
   if (existing) return existing
 
   let active = true
+  const backlog: BacklogCache = {
+    async getState(ownerId, conversationId) {
+      if (!active) return null
+      const database = await getDatabase()
+      return new BacklogRepository(database).getState(ownerId, conversationId)
+    },
+    async applyChanges(ownerId, conversationId, changes, nextCursor, syncedAt) {
+      if (!active) return
+      const { projectId } = parseConversationCacheScope(ownerId)
+      for (const change of changes) {
+        if (
+          change.entity === 'conversation' &&
+          (change.data as Conversation | null)?.project_id !== projectId
+        ) {
+          throw new Error('Conversation project does not match the active messaging session')
+        }
+      }
+      const database = await getDatabase()
+      await new BacklogRepository(database).applyChanges(
+        ownerId,
+        conversationId,
+        changes,
+        nextCursor,
+        syncedAt,
+      )
+    },
+    async replaceSnapshot(ownerId, conversationId, messages, nextCursor, syncedAt) {
+      if (!active) return
+      const database = await getDatabase()
+      await new BacklogRepository(database).replaceSnapshot(
+        ownerId,
+        conversationId,
+        messages,
+        nextCursor,
+        syncedAt,
+      )
+    },
+  }
   const cache: MobileMessagingCache = {
+    backlog,
     async list(ownerId, query: ConversationListQuery) {
       if (!active) return { items: [], next_cursor: null, has_more: false }
       const database = await getDatabase()
@@ -122,9 +163,10 @@ export function createMobileConversationCache(scope: string): MobileMessagingCac
       await database.transaction(async (transaction) => {
         await transaction.run('DELETE FROM cached_messages WHERE owner_id = ?', [ownerId])
         await transaction.run('DELETE FROM cached_conversations WHERE owner_id = ?', [ownerId])
-        await transaction.run("DELETE FROM sync_state WHERE owner_id = ? AND dataset = 'chat'", [
-          ownerId,
-        ])
+        await transaction.run(
+          "DELETE FROM sync_state WHERE owner_id = ? AND dataset LIKE 'chat:%'",
+          [ownerId],
+        )
       })
     },
   }

@@ -1,3 +1,5 @@
+export { reconcileBacklog } from './backlog'
+export type { BacklogReconcileOptions, BacklogReconcileResult } from './backlog'
 export { useChat } from './useChat'
 export {
   createOptimisticMessage,
@@ -12,6 +14,8 @@ export type {
   ChatDataSource,
   ChatSendResult,
   ChatStatus,
+  BacklogCache,
+  BacklogState,
   MessageCache,
   UseChatOptions,
   UseChatResult,

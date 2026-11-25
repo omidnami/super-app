@@ -493,7 +493,7 @@ Hub همچنان دقیقاً هفت فیلد دارد:
 ## ۱۱. Delta Sync
 
 ```http
-GET /api/v1/chat/sync?cursor=&limit=100
+GET /api/v1/chat/sync?cursor=&limit=100&conversation_id=&project_id=
 Authorization: Bearer <MESSAGING_ACCESS_TOKEN>
 ```
 

@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { readableOnColor } from '@superapp/design-tokens'
 import { useTheme } from '@superapp/theme'
-import { formatPersianDate } from '../src/format'
+import { formatPersianDateTime } from '../src/format'
 import type {
   EmptyStateProps,
   ErrorStateProps,
@@ -110,7 +110,7 @@ export function SyncStatusBar({ status, lastSyncedAt, onPress }: SyncStatusBarPr
   const label = {
     idle: 'آماده سینک',
     syncing: 'در حال سینک...',
-    success: lastSyncedAt ? `آخرین سینک: ${formatPersianDate(lastSyncedAt)}` : 'همگام شد',
+    success: lastSyncedAt ? `آخرین سینک: ${formatPersianDateTime(lastSyncedAt)}` : 'همگام شد',
     error: 'سینک ناموفق',
   }[status]
   const color =

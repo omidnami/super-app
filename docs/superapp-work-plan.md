@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۱۱**
+- تمام‌شده: **۱۲**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۱۱**
-- درصد پیشرفت: **۵۰٪**
+- باقی‌مانده: **۱۰**
+- درصد پیشرفت: **۵۴٫۵٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -74,7 +74,7 @@
 | STEP-08 | صف گفتگوها و فیلترها | STEP-04 + STEP-06 | Chat | ۱ روز | [x] |
 | STEP-09 | صفحه چت، متن، ایموجی و Real-Time | STEP-07 + STEP-08 | Chat | ۱–۲ روز | [x] |
 | STEP-10 | فایل، ویس و رسانه | STEP-09 + STEP-B03 | Chat / Media | ۱–۲ روز | [x] |
-| STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [ ] |
+| STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [x] |
 | STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [ ] |
 | STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
 | STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
@@ -669,7 +669,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-07 + STEP-09
 **خروجی:** تجربه آفلاین فقط‌خواندنی بدون Gap و Duplicate
 
-- [ ] **STEP-11 تمام شد**
+- [x] **STEP-11 تمام شد**
 
 ### پرامپت اجرا
 
@@ -979,6 +979,7 @@ Blockerها:
 | 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۶۱ تست (۱۱ Package + ۴۷ PWA + ۳ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، فیلترها، Pagination، Adapter قابل‌تنظیم Planet، Fallback فقط شبکه، Cache با Scope اپراتور/پروژه، پاک‌سازی Logout، Tombstone در Snapshot و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
 | 2026-11-25 | STEP-09 | Done | lint، typecheck، format:check و ۸۸ تست (۱۱ Package + ۷۳ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | ChatScreen، ChatBubble، Composer، EmojiButton، MessageStatus، تاریخچه صفحه‌بندی‌شده، Optimistic Send، ACK Canonical، Dedup، Timeout نامشخص، Cache آفلاین موبایل و تبادل پیام بین دو Client آماده‌اند؛ مستند در `docs/chat.md`؛ استپ بعدی STEP-10 |
 | 2026-11-25 | STEP-10 | Done | lint، typecheck، format:check و ۱۲۹ تست (۱۱ Package + ۱۱۴ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AttachmentPicker، UploadProgress، FileBubble، VoiceRecorder/Player، آپلود و دریافت امن Planet، اعتبارسنجی نوع/حجم، Voice فقط بله، Cancel/Retry و حالت آفلاین رسانه آماده‌اند؛ مستند در `docs/media.md`؛ استپ بعدی STEP-11 |
+| 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۴۶ تست (۱۱ Package + ۱۳۱ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
 
 ---
 
@@ -1015,7 +1016,7 @@ Blockerها:
 - [x] صف گفتگوها آماده است.
 - [x] چت متنی Real-Time آماده است.
 - [x] فایل و ویس آماده است.
-- [ ] تاریخچه آفلاین آماده است.
+- [x] تاریخچه آفلاین آماده است.
 - [ ] سطوح پشتیبانی و تخصیص آماده است.
 - [ ] فروشگاه فقط‌خواندنی آماده است.
 - [ ] حسابداری فقط‌خواندنی آماده است.
@@ -1051,3 +1052,4 @@ Blockerها:
 | 1.18 | 2026-11-25 | سخت‌سازی STEP-10: Multipart واقعی، Allowlist رسانه، Cache Scopeدار و پاک‌سازی Logout، دانلود اتمیک و حفظ Attachment پس از خطای Hub |
 | 1.19 | 2026-11-25 | رفع Race تأیید دیررس Hub و پاک‌شدن Attachment نگه‌داری‌شده در Composer پس از تحویل Canonical |
 | 1.20 | 2026-11-25 | یکپارچه‌سازی مسیر انتخاب File/Voice و جلوگیری از حذف رسانه جایگزین توسط ACK قدیمی |
+| 1.21 | 2026-11-25 | تکمیل STEP-11، افزودن Backlog Reconciliation، Cursor per Conversation، Merge اتمیک، Full Resync و UI وضعیت سینک |

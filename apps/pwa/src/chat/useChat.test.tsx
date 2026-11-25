@@ -9,6 +9,8 @@ import type {
   HubMessage,
   MessagePage,
   Paginated,
+  SyncChange,
+  SyncResult,
 } from '@superapp/chat-contracts'
 import { PlanetApiError, type ConversationApi } from '@superapp/api-client'
 import {
@@ -107,6 +109,35 @@ function createCache(): MessageCache {
   return {
     listMessages: vi.fn<MessageCache['listMessages']>(async () => cachedPage([])),
     saveMessages: vi.fn<MessageCache['saveMessages']>(async () => undefined),
+  }
+}
+
+function createBacklogCache() {
+  let state = { cursor: null as string | null, lastSyncedAt: null as string | null, status: 'idle' }
+  return {
+    getState: vi.fn(async () => state),
+    applyChanges: vi.fn(
+      async (
+        _ownerId: string,
+        _conversationId: string,
+        _changes: SyncChange[],
+        nextCursor: string,
+        syncedAt?: string,
+      ) => {
+        state = { cursor: nextCursor, lastSyncedAt: syncedAt || null, status: 'success' }
+      },
+    ),
+    replaceSnapshot: vi.fn(
+      async (
+        _ownerId: string,
+        _conversationId: string,
+        _messages: CanonicalMessage[],
+        nextCursor: string,
+        syncedAt?: string,
+      ) => {
+        state = { cursor: nextCursor, lastSyncedAt: syncedAt || null, status: 'success' }
+      },
+    ),
   }
 }
 
@@ -667,6 +698,226 @@ describe('shared mock transport', () => {
     )
     expect(result.current.second.messages.map((message) => message.text)).toEqual(
       expect.arrayContaining(['از اپراتور اول', 'از اپراتور دوم']),
+    )
+  })
+})
+
+describe('useChat backlog reconciliation', () => {
+  it('applies delta changes atomically and records the server sync time', async () => {
+    const missed = canonicalMessage('missed', { sent_at: '2026-11-25T10:05:00.000Z' })
+    const serverTime = '2026-11-25T10:06:00.000Z'
+    const backlog = createBacklogCache()
+    const cache = { ...createCache(), backlog }
+    const sync = vi.fn<NonNullable<ConversationApi['sync']>>(async () => ({
+      changes: [
+        {
+          entity: 'message',
+          id: missed.id,
+          op: 'upsert',
+          version: 1,
+          updated_at: missed.updated_at,
+          deleted_at: null,
+          data: missed,
+        },
+      ],
+      next_cursor: 'cursor_1',
+      server_time: serverTime,
+      has_more: false,
+    }))
+    const configured = renderChat({
+      api: { ...apiWithListMessages(async () => messagePage([])), sync },
+      cache,
+    })
+
+    await waitForReady(configured.result)
+    expect(configured.result.current.messages).toEqual([missed])
+    expect(configured.result.current.lastSyncedAt).toBe(serverTime)
+    expect(configured.result.current.syncStatus).toBe('success')
+    expect(backlog.applyChanges).toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
+      expect.any(Array),
+      'cursor_1',
+      serverTime,
+    )
+  })
+
+  it('fetches the missing delta after a real Hub reconnect', async () => {
+    const missed = canonicalMessage('reconnected_gap', { sent_at: '2026-11-25T10:05:00.000Z' })
+    const sync = vi
+      .fn<NonNullable<ConversationApi['sync']>>()
+      .mockResolvedValueOnce({
+        changes: [],
+        next_cursor: 'cursor_1',
+        server_time: '2026-11-25T10:01:00.000Z',
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        changes: [
+          {
+            entity: 'message',
+            id: missed.id,
+            op: 'upsert',
+            version: 1,
+            updated_at: missed.updated_at,
+            deleted_at: null,
+            data: missed,
+          },
+        ],
+        next_cursor: 'cursor_2',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      })
+    const { hub, result } = renderChat({
+      api: { ...apiWithListMessages(async () => messagePage([])), sync },
+      cache: { ...createCache(), backlog: createBacklogCache() },
+    })
+    await waitForReady(result)
+    expect(result.current.messages).toEqual([])
+
+    act(() => hub.simulateDisconnect())
+    await waitFor(() => expect(result.current.isOffline).toBe(true))
+    await waitFor(() => expect(result.current.isOffline).toBe(false), { timeout: 5000 })
+    await waitFor(() => expect(result.current.messages).toEqual([missed]))
+    expect(sync).toHaveBeenCalledTimes(2)
+  })
+
+  it('deduplicates a live event buffered while the backlog request is in flight', async () => {
+    const pending = deferred<SyncResult>()
+    const canonical = canonicalMessage('canonical_overlap', {
+      text: incomingMessage.text,
+      sent_at: new Date(incomingMessage.timestamp).toISOString(),
+    })
+    const backlog = createBacklogCache()
+    const cache = { ...createCache(), backlog }
+    const { hub, result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([])),
+        sync: vi.fn(() => pending.promise),
+      },
+      cache,
+    })
+    await waitFor(() => expect(result.current.syncStatus).toBe('syncing'))
+    act(() => hub.simulateIncoming(incomingMessage))
+    act(() =>
+      pending.resolve({
+        changes: [
+          {
+            entity: 'message',
+            id: canonical.id,
+            op: 'upsert',
+            version: 1,
+            updated_at: canonical.updated_at,
+            deleted_at: null,
+            data: canonical,
+          },
+        ],
+        next_cursor: 'cursor_1',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      }),
+    )
+    await waitForReady(result)
+
+    expect(result.current.messages).toEqual([canonical])
+  })
+
+  it('removes a deleted message without discarding the rest of the history', async () => {
+    const removed = canonicalMessage('removed')
+    const kept = canonicalMessage('kept', { sent_at: '2026-11-25T10:02:00.000Z' })
+    const sync = vi
+      .fn<NonNullable<ConversationApi['sync']>>()
+      .mockResolvedValueOnce({
+        changes: [removed, kept].map((message) => ({
+          entity: 'message' as const,
+          id: message.id,
+          op: 'upsert' as const,
+          version: 1,
+          updated_at: message.updated_at,
+          deleted_at: null,
+          data: message,
+        })),
+        next_cursor: 'cursor_1',
+        server_time: '2026-11-25T10:03:00.000Z',
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        changes: [
+          {
+            entity: 'message',
+            id: removed.id,
+            op: 'delete',
+            version: 2,
+            updated_at: '2026-11-25T10:04:00.000Z',
+            deleted_at: '2026-11-25T10:04:00.000Z',
+            data: null,
+          },
+        ],
+        next_cursor: 'cursor_2',
+        server_time: '2026-11-25T10:04:00.000Z',
+        has_more: false,
+      })
+    const { result } = renderChat({
+      api: { ...apiWithListMessages(async () => messagePage([])), sync },
+      cache: { ...createCache(), backlog: createBacklogCache() },
+    })
+    await waitForReady(result)
+    expect(result.current.messages).toHaveLength(2)
+
+    await act(async () => result.current.retry())
+    await waitFor(() => expect(result.current.messages).toEqual([kept]))
+  })
+
+  it('keeps readable offline history and the last successful sync time after a network error', async () => {
+    const cached = canonicalMessage('cached')
+    const cache = createCache()
+    vi.mocked(cache.listMessages).mockResolvedValue(cachedPage([cached]))
+    const backlog = createBacklogCache()
+    vi.mocked(backlog.getState).mockResolvedValue({
+      cursor: 'cursor_1',
+      lastSyncedAt: '2026-11-25T10:00:00.000Z',
+      status: 'success',
+    })
+    const { result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([])),
+        sync: vi.fn(async () => {
+          throw new Error('offline')
+        }),
+      },
+      cache: { ...cache, backlog },
+    })
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.messages).toEqual([cached])
+    expect(result.current.dataSource).toBe('cache')
+    expect(result.current.isStale).toBe(true)
+    expect(result.current.lastSyncedAt).toBe('2026-11-25T10:00:00.000Z')
+    expect(result.current.syncStatus).toBe('error')
+  })
+
+  it('performs a full snapshot when the server cursor has expired', async () => {
+    const snapshot = canonicalMessage('snapshot')
+    const backlog = createBacklogCache()
+    const listMessages = vi.fn(async () => messagePage([snapshot]))
+    const { result } = renderChat({
+      api: {
+        ...apiWithListMessages(listMessages),
+        sync: vi.fn(async () => {
+          throw new PlanetApiError('cursor expired', 410)
+        }),
+      },
+      cache: { ...createCache(), backlog },
+    })
+
+    await waitForReady(result)
+    expect(result.current.messages).toEqual([snapshot])
+    expect(backlog.replaceSnapshot).toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
+      [snapshot],
+      '',
+      expect.any(String),
     )
   })
 })
