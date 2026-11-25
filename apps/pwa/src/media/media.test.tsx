@@ -199,6 +199,16 @@ describe('mock media adapter', () => {
     expect(content.blob).toBeInstanceOf(Blob)
   })
 
+  it('serves fixture attachments only through their owning conversation', async () => {
+    const media = createMockMediaApi()
+    await expect(
+      media.getAttachment('att_3001', { conversationId: 'conv_1002' }),
+    ).resolves.toMatchObject({ id: 'att_3001', type: 'document' })
+    await expect(
+      media.getAttachment('att_3001', { conversationId: 'conv_1001' }),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
   it('simulates Planet conversion of device voice recordings to Bale Ogg', async () => {
     const media = createMockMediaApi()
     const uploaded = await media.uploadAttachment(

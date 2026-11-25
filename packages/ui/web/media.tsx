@@ -667,20 +667,14 @@ export function VoiceRecorder({ disabled = false, onRecorded, onError }: VoiceRe
 
         try {
           const extension = recordedMimeType.includes('ogg') ? 'ogg' : 'webm'
-          const uri = URL.createObjectURL(blob)
-          try {
-            onRecordedRef.current({
-              uri,
-              name: `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`,
-              mimeType: recordedMimeType,
-              size: blob.size,
-              type: 'voice',
-              duration: recordedDuration,
-            })
-          } catch (reason) {
-            URL.revokeObjectURL(uri)
-            throw reason
-          }
+          onRecordedRef.current({
+            uri: '',
+            name: `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`,
+            mimeType: recordedMimeType,
+            size: blob.size,
+            type: 'voice',
+            duration: recordedDuration,
+          })
         } catch (reason) {
           fail(reason)
         }

@@ -1,4 +1,6 @@
 import type { Attachment, AttachmentType, UploadAttachmentRequest } from '@superapp/chat-contracts'
+import attachmentFixtures from '../mocks/fixtures/attachments.json'
+import messageFixtures from '../mocks/fixtures/messages.json'
 
 export interface MediaRequestContext {
   accessToken?: string
@@ -152,6 +154,13 @@ function assertRequest(request: UploadAttachmentRequest, context: MediaRequestCo
 
 export function createMockMediaApi(): ConversationMediaApi {
   const attachments = new Map<string, { conversationId: string; attachment: Attachment }>()
+  for (const fixture of attachmentFixtures as unknown as Attachment[]) {
+    const message = (
+      messageFixtures as unknown as { conversation_id: string; attachment: Attachment | null }[]
+    ).find((item) => item.attachment?.id === fixture.id)
+    if (message)
+      attachments.set(fixture.id, { conversationId: message.conversation_id, attachment: fixture })
+  }
   let nextId = 1
 
   function findAttachment(id: string, context: MediaRequestContext) {
