@@ -31,7 +31,7 @@ UI مستقیماً Socket، `fetch` یا SQL نمی‌نویسد.
 ## ۳. تاریخچه
 
 - دریافت صفحه اول از `ConversationApi.listMessages`
-- Pagination با Cursor
+- Pagination با Cursor از جدیدترین به قدیمی‌ترین
 - ذخیره پیام‌های canonical در SQLite موبایل
 - Fallback به Cache فقط در خطای شبکه
 - نمایش داده Cache با برچسب آفلاین
@@ -64,7 +64,7 @@ HubMessage همچنان فقط هفت فیلد قرارداد دارد. `client_
 
 ارسال مجدد خودکار انجام نمی‌شود. Retry دستی باید همان `client_mutation_id` را استفاده کند.
 
-در حالت آفلاین یا قطع Hub، Composer غیرفعال است.
+در حالت آفلاین یا قطع Hub، Composer غیرفعال است. موبایل وضعیت اتصال و دسترسی به اینترنت را با `expo-network` می‌خواند؛ PWA از رویدادهای `online` و `offline` مرورگر استفاده می‌کند.
 
 ---
 
@@ -72,7 +72,9 @@ HubMessage همچنان فقط هفت فیلد قرارداد دارد. `client_
 
 - پیام زنده فقط برای گفتگوی فعلی پذیرفته می‌شود.
 - HubMessage با Identifier پایدار محلی به Canonical Message نگاشت می‌شود.
-- Merge بر اساس `message.id` و `client_mutation_id` انجام می‌شود.
+- Merge بر اساس `message.id`، `client_mutation_id` و Signature محتوای پیام انجام می‌شود.
+- اگر همان پیام زنده در تاریخچه canonical وجود داشته باشد، نمایش محلی `hub_*` کنار گذاشته می‌شود.
+- رکورد مصنوعی `hub_*` پیش از ذخیره نسخه canonical در SQLite حذف می‌شود.
 - Echo پیام خود اپراتور با Optimistic موجود ادغام می‌شود.
 - رویداد تکراری باعث دو Bubble نمی‌شود.
 
@@ -89,7 +91,9 @@ Hub فعلی `message_id` canonical در ACK ندارد. Adapter Mock برای M
 ## ۸. تست‌ها
 
 - ارسال موفق و جایگزینی Optimistic با Canonical
-- Dedup رویداد زنده تکراری
+- Dedup رویداد زنده تکراری و تداخل آن با تاریخچه canonical
+- حذف رکورد مصنوعی Hub پیش از ذخیره Canonical
+- باز شدن تاریخچه از جدیدترین و بارگذاری قدیمی‌تر با Cursor
 - تبادل پیام بین دو Chat Client با Transport مشترک
 - Timeout و وضعیت نامشخص بدون ارسال مجدد
 - قطع Hub و ارسال آفلاین

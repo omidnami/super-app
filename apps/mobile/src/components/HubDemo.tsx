@@ -25,6 +25,7 @@ import {
 } from '@superapp/ui/native'
 import { conversationApi } from '../conversations/api'
 import { createMobileConversationCache } from '../conversations/cache'
+import { useNetworkStatus } from '../conversations/useNetworkStatus'
 
 const ticketAdapter = createMockTicketAdapter()
 const mockHub = createMockHubTransport()
@@ -157,6 +158,7 @@ export function MessagingHub() {
     ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
     : ''
   const cache = useMemo(() => (scope ? createMobileConversationCache(scope) : undefined), [scope])
+  const isOnline = useNetworkStatus()
   if (!session) return null
 
   return (
@@ -185,6 +187,7 @@ export function MessagingHub() {
             operatorId={session.context.operatorId}
             accessToken={session.accessToken}
             cache={cache}
+            isOnline={isOnline}
             onBack={() => setConversation(null)}
           />
         ) : activeTab === 'inbox' ? (

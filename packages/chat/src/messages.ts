@@ -67,25 +67,48 @@ function preferMessage(existing: CanonicalMessage, candidate: CanonicalMessage) 
   return candidateUpdatedAt >= existingUpdatedAt ? candidate : existing
 }
 
+function canonicalSignature(message: CanonicalMessage, conversation: Conversation) {
+  return JSON.stringify([
+    conversation.source,
+    conversation.robot_id,
+    conversation.chat_id,
+    message.sender,
+    Date.parse(message.sent_at),
+    message.text,
+    attachmentSignature(message.attachment),
+  ])
+}
+
+function preferDuplicate(first: CanonicalMessage, second: CanonicalMessage) {
+  const firstSynthetic = first.id.startsWith('hub_')
+  const secondSynthetic = second.id.startsWith('hub_')
+  if (firstSynthetic !== secondSynthetic) return firstSynthetic ? second : first
+  return preferMessage(first, second)
+}
+
 export function mergeCanonicalMessages(
   current: CanonicalMessage[],
   incoming: CanonicalMessage[],
+  conversation?: Conversation,
 ): CanonicalMessage[] {
   const byId = new Map<string, CanonicalMessage>()
   const byClientMutationId = new Map<string, CanonicalMessage>()
+  const bySignature = new Map<string, CanonicalMessage>()
 
   const add = (candidate: CanonicalMessage) => {
     const mutationMatch = candidate.client_mutation_id
       ? byClientMutationId.get(candidate.client_mutation_id)
       : undefined
-    const existing = [byId.get(candidate.id), mutationMatch]
+    const signature = conversation ? canonicalSignature(candidate, conversation) : null
+    const signatureMatch = signature ? bySignature.get(signature) : undefined
+    const existing = [byId.get(candidate.id), mutationMatch, signatureMatch]
       .filter((message): message is CanonicalMessage => Boolean(message))
       .reduce<CanonicalMessage | undefined>((selected, message) => {
         if (!selected) return message
-        return preferMessage(selected, message) === selected ? selected : message
+        return preferDuplicate(selected, message) === selected ? selected : message
       }, undefined)
 
-    if (existing && preferMessage(existing, candidate) === existing) return
+    if (existing && preferDuplicate(existing, candidate) === existing) return
 
     if (existing) {
       byId.delete(existing.id)
@@ -95,11 +118,16 @@ export function mergeCanonicalMessages(
       ) {
         byClientMutationId.delete(existing.client_mutation_id)
       }
+      if (conversation) {
+        const existingSignature = canonicalSignature(existing, conversation)
+        if (bySignature.get(existingSignature) === existing) bySignature.delete(existingSignature)
+      }
     }
     byId.set(candidate.id, candidate)
     if (candidate.client_mutation_id) {
       byClientMutationId.set(candidate.client_mutation_id, candidate)
     }
+    if (signature) bySignature.set(signature, candidate)
   }
 
   current.forEach(add)

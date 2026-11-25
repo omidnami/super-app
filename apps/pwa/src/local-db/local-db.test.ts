@@ -245,6 +245,26 @@ describe('local database and sync core', () => {
 
     const result = await messages.list('prj_12', 'conv_1')
     expect(result.items.map((item) => item.id)).toEqual(['msg_1', 'msg_2'])
+
+    const latest = await messages.list('prj_12', 'conv_1', { limit: 1 })
+    expect(latest.items.map((item) => item.id)).toEqual(['msg_2'])
+    expect(latest).toMatchObject({ next_cursor: 'offset_1', has_more: true })
+    const older = await messages.list('prj_12', 'conv_1', { limit: 1, cursor: 'offset_1' })
+    expect(older.items.map((item) => item.id)).toEqual(['msg_1'])
+    expect(older).toMatchObject({ next_cursor: null, has_more: false })
+  })
+
+  it('replaces a synthetic live id with the matching canonical history row', async () => {
+    const conversations = new ConversationRepository(database)
+    const messages = new MessageRepository(database)
+    await conversations.upsert('prj_12', conversation, '2026-11-25T10:01:00.000Z')
+    await messages.upsert('prj_12', { ...message, id: 'hub_synthetic' }, '2026-11-25T10:01:00.000Z')
+
+    await messages.deleteSyntheticDuplicate('prj_12', message)
+    await messages.upsert('prj_12', message, '2026-11-25T10:02:00.000Z')
+
+    const result = await messages.list('prj_12', 'conv_1')
+    expect(result.items.map((item) => item.id)).toEqual(['msg_1'])
   })
 
   it('rolls back the whole batch and cursor when a change fails', async () => {

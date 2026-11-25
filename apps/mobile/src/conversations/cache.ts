@@ -83,6 +83,7 @@ export function createMobileConversationCache(scope: string): MobileMessagingCac
           if (message.conversation_id !== conversationId) {
             throw new Error('Message does not belong to the active conversation')
           }
+          await repository.deleteSyntheticDuplicate(ownerId, message)
           await repository.upsert(ownerId, message, syncedAt)
         }
       })

@@ -199,10 +199,13 @@ export function useChat({
         initialLoadingRef.current = false
         const buffered = bufferedEventsRef.current
         bufferedEventsRef.current = []
-        let next = mergeCanonicalMessages(messagesRef.current, page.items)
-        for (const event of buffered) next = mergeCanonicalMessages(next, [event])
+        let next = mergeCanonicalMessages(messagesRef.current, page.items, conversation)
+        for (const event of buffered) next = mergeCanonicalMessages(next, [event], conversation)
         updateMessages(() => next)
-        void persistCanonical(conversation.id, buffered)
+        const bufferedToStore = buffered.filter((event) =>
+          next.some((message) => message.id === event.id),
+        )
+        void persistCanonical(conversation.id, bufferedToStore)
         setNextCursor(page.next_cursor)
         setHasMore(Boolean(page.has_more && page.next_cursor))
         setDataSource(source)
@@ -225,7 +228,7 @@ export function useChat({
         setStatus('error')
       }
     },
-    [conversation.id, fetchPage, pageSize, persistCanonical, updateMessages],
+    [conversation, fetchPage, pageSize, persistCanonical, updateMessages],
   )
 
   useEffect(() => {
@@ -252,8 +255,15 @@ export function useChat({
           bufferedEventsRef.current.push(canonical)
           return
         }
-        updateMessages((current) => mergeCanonicalMessages(current, [canonical]))
-        void persistCanonical(conversationRef.current.id, [canonical])
+        const merged = mergeCanonicalMessages(
+          messagesRef.current,
+          [canonical],
+          conversationRef.current,
+        )
+        updateMessages(() => merged)
+        if (merged.some((message) => message.id === canonical.id)) {
+          void persistCanonical(conversationRef.current.id, [canonical])
+        }
       }),
     [ownerId, persistCanonical, senderId, subscribe, updateMessages],
   )
@@ -274,7 +284,7 @@ export function useChat({
         controller.signal,
       )
       if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted) return
-      updateMessages((current) => mergeCanonicalMessages(current, page.items))
+      updateMessages((current) => mergeCanonicalMessages(current, page.items, conversation))
       setNextCursor(page.next_cursor)
       setHasMore(Boolean(page.has_more && page.next_cursor))
       setDataSource(source)
@@ -293,7 +303,7 @@ export function useChat({
         setIsLoadingMore(false)
       }
     }
-  }, [fetchPage, hasMore, nextCursor, pageSize, status, updateMessages])
+  }, [conversation, fetchPage, hasMore, nextCursor, pageSize, status, updateMessages])
 
   const retry = useCallback(async () => {
     await loadFirstPage(false)
@@ -338,7 +348,7 @@ export function useChat({
       localSignaturesRef.current.add(hubMessageSignature(wireMessage))
       setError(null)
       setSendActive(clientMutationId, true)
-      updateMessages((current) => mergeCanonicalMessages(current, [optimistic]))
+      updateMessages((current) => mergeCanonicalMessages(current, [optimistic], conversation))
 
       const isCurrent = () => sendGeneration === scopeGenerationRef.current
       const applyAck = (ack: HubAck) => {
@@ -355,6 +365,7 @@ export function useChat({
                     message.id !== optimistic.id && message.client_mutation_id !== clientMutationId,
                 ),
                 [canonical],
+                conversation,
               ),
             )
           } else {

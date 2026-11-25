@@ -102,6 +102,17 @@ describe('conversation inbox data', () => {
     })
   })
 
+  it('opens message history at the latest page and moves backward with the cursor', async () => {
+    const api = createMockConversationApi()
+    const latest = await api.listMessages('conv_1001', { limit: 2 })
+    expect(latest.items.map((message) => message.id)).toEqual(['msg_2002', 'msg_2003'])
+    expect(latest).toMatchObject({ next_cursor: 'offset_2', has_more: true })
+
+    const older = await api.listMessages('conv_1001', { limit: 2, cursor: 'offset_2' })
+    expect(older.items.map((message) => message.id)).toEqual(['msg_2001'])
+    expect(older).toMatchObject({ next_cursor: null, has_more: false })
+  })
+
   it('passes filters and the messaging access token to the API', async () => {
     const list = vi.fn<ConversationApi['list']>(async () => page([]))
     const api = apiWithList(list)

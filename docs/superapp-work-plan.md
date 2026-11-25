@@ -977,7 +977,7 @@ Blockerها:
 | 2026-11-25 | STEP-06 | Done | lint، typecheck، format:check و ۲۹ تست (۱۱ Package + ۱۷ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/hub-client`، Ticket Adapter، Socket.IO Transport، Reconnect، Refresh Ticket، Buffer رویدادها و Demo اتصال آماده‌اند؛ مستند در `docs/hub-client.md`؛ استپ بعدی STEP-07 |
 | 2026-11-25 | STEP-07 | Done | lint، typecheck، format:check و ۳۶ تست (۱۱ Package + ۲۴ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/local-db`، Schema و Migration، Repositoryهای typed، Upsert اتمیک، Tombstone، Cursor و Sync Engine آماده‌اند؛ مستند در `docs/local-db.md`؛ استپ بعدی STEP-08 |
 | 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۶۱ تست (۱۱ Package + ۴۷ PWA + ۳ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، فیلترها، Pagination، Adapter قابل‌تنظیم Planet، Fallback فقط شبکه، Cache با Scope اپراتور/پروژه، پاک‌سازی Logout، Tombstone در Snapshot و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
-| 2026-11-25 | STEP-09 | Done | lint، typecheck، format:check و ۸۳ تست (۱۱ Package + ۶۹ PWA + ۳ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | ChatScreen، ChatBubble، Composer، EmojiButton، MessageStatus، تاریخچه صفحه‌بندی‌شده، Optimistic Send، ACK Canonical، Dedup، Timeout نامشخص، Cache آفلاین موبایل و تبادل پیام بین دو Client آماده‌اند؛ مستند در `docs/chat.md`؛ استپ بعدی STEP-10 |
+| 2026-11-25 | STEP-09 | Done | lint، typecheck، format:check و ۸۷ تست (۱۱ Package + ۷۲ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | ChatScreen، ChatBubble، Composer، EmojiButton، MessageStatus، تاریخچه صفحه‌بندی‌شده، Optimistic Send، ACK Canonical، Dedup، Timeout نامشخص، Cache آفلاین موبایل و تبادل پیام بین دو Client آماده‌اند؛ مستند در `docs/chat.md`؛ استپ بعدی STEP-10 |
 
 ---
 
@@ -1044,3 +1044,4 @@ Blockerها:
 | 1.12 | 2026-11-25 | سخت‌سازی STEP-08: اتصال واقعی قابل‌تنظیم، جلوگیری از Fallback روی خطای سرور، Scope اپراتور/پروژه، پاک‌سازی Cache در Logout، Migration امن و Tombstone در Snapshot |
 | 1.13 | 2026-11-25 | رفع Race ذخیره Cache پس از Logout، اعتبارسنجی Pagination و مقاومت Tombstone در برابر Upsert قدیمی |
 | 1.14 | 2026-11-25 | تکمیل STEP-09، ایجاد ChatScreen، Composer، ایموجی، Optimistic Send، ACK Canonical، Dedup، وضعیت تحویل و Cache آفلاین موبایل |
+| 1.15 | 2026-11-25 | سخت‌سازی STEP-09: Dedup زنده/تاریخچه، Pagination از جدیدترین به قدیمی‌ترین و اتصال Network Status موبایل |

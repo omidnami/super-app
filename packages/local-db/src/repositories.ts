@@ -298,6 +298,23 @@ export class ConversationRepository {
 export class MessageRepository {
   constructor(private readonly database: LocalDatabase) {}
 
+  async deleteSyntheticDuplicate(ownerId: string, message: CanonicalMessage) {
+    if (message.id.startsWith('hub_')) return
+    await this.database.run(
+      `DELETE FROM cached_messages
+       WHERE owner_id = ? AND conversation_id = ? AND server_id GLOB 'hub_*'
+         AND sender = ? AND text = ? AND sent_at = ? AND attachment_json IS ?`,
+      [
+        ownerId,
+        message.conversation_id,
+        message.sender,
+        message.text,
+        message.sent_at,
+        message.attachment ? JSON.stringify(message.attachment) : null,
+      ],
+    )
+  }
+
   async upsert(ownerId: string, message: CanonicalMessage, syncedAt: string) {
     await this.database.run(
       `INSERT INTO cached_messages (
@@ -359,19 +376,24 @@ export class MessageRepository {
     const conditions = ['owner_id = ?', 'conversation_id = ?', 'deleted_at IS NULL']
     const params: SqlValue[] = [ownerId, conversationId]
     if (options.before) {
-      conditions.push('server_id < ?')
-      params.push(options.before)
+      conditions.push(
+        `(sent_at, server_id) < (
+          SELECT sent_at, server_id FROM cached_messages
+          WHERE owner_id = ? AND server_id = ?
+        )`,
+      )
+      params.push(ownerId, options.before)
     }
     params.push(limit + 1, offset)
     const rows = await this.database.all<MessageRow>(
       `SELECT * FROM cached_messages
        WHERE ${conditions.join(' AND ')}
-       ORDER BY sent_at ASC, server_id ASC
+       ORDER BY sent_at DESC, server_id DESC
        LIMIT ? OFFSET ?`,
       params,
     )
     const hasMore = rows.length > limit
-    const items = rows.slice(0, limit).map(toMessage)
+    const items = rows.slice(0, limit).reverse().map(toMessage)
     const nextOffset = offset + items.length
     return {
       items,

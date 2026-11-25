@@ -421,6 +421,37 @@ describe('useChat history and live events', () => {
     ])
   })
 
+  it('deduplicates a buffered live event when the same canonical message exists in history', async () => {
+    const history = deferred<MessagePage>()
+    const cache = createCache()
+    const { hub, result } = renderChat({
+      api: apiWithListMessages(() => history.promise),
+      cache,
+    })
+    await waitFor(() => expect(result.current.status).toBe('loading'))
+    act(() => hub.simulateIncoming(incomingMessage))
+    const canonical = canonicalMessage('canonical_overlap', {
+      text: incomingMessage.text,
+      sent_at: new Date(incomingMessage.timestamp).toISOString(),
+    })
+    act(() => history.resolve(messagePage([canonical])))
+    await waitForReady(result)
+
+    expect(result.current.messages).toEqual([canonical])
+    expect(cache.saveMessages).toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
+      [canonical],
+      undefined,
+    )
+    expect(cache.saveMessages).not.toHaveBeenCalledWith(
+      'op_42',
+      conversation.id,
+      [expect.objectContaining({ id: expect.stringMatching(/^hub_/) })],
+      undefined,
+    )
+  })
+
   it('deduplicates live events and ignores another source, robot, or chat', async () => {
     const cache = createCache()
     const { hub, result } = renderChat({ cache })

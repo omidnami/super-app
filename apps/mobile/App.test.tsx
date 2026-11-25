@@ -10,6 +10,11 @@ jest.mock('./src/conversations/cache', () => ({
   clearConversationCacheForSession: async () => undefined,
 }))
 
+jest.mock('expo-network', () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
+  addNetworkStateListener: () => ({ remove: () => undefined }),
+}))
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {

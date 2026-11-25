@@ -109,21 +109,24 @@ export function createMockConversationApi(): ConversationApi {
     async listMessages(conversationId, query = {}) {
       const conversation = conversations.find((item) => item.id === conversationId)
       if (!conversation) throw new Error('Conversation not found')
-      let items = messages
+      const items = messages
         .filter((message) => message.conversation_id === conversationId && !message.deleted_at)
         .sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at) || a.id.localeCompare(b.id))
+      let end = items.length
       if (query.before) {
         const index = items.findIndex((message) => message.id === query.before)
-        if (index >= 0) items = items.slice(0, index)
+        if (index >= 0) end = index
       }
       const limit = Math.min(Math.max(query.limit || 50, 1), 200)
       const offset = offsetFromCursor(query.cursor)
-      const pageItems = items.slice(offset, offset + limit)
+      const effectiveEnd = Math.max(0, end - offset)
+      const start = Math.max(0, effectiveEnd - limit)
+      const pageItems = items.slice(start, effectiveEnd)
       const nextOffset = offset + pageItems.length
       return {
         items: pageItems,
-        next_cursor: nextOffset < items.length ? `offset_${nextOffset}` : null,
-        has_more: nextOffset < items.length,
+        next_cursor: start > 0 ? `offset_${nextOffset}` : null,
+        has_more: start > 0,
         conversation,
       }
     },
