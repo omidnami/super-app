@@ -24,6 +24,7 @@ interface ConversationRow {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  sync_version: number
 }
 
 interface MessageRow {
@@ -40,6 +41,7 @@ interface MessageRow {
   updated_at: string
   deleted_at: string | null
   delivery_status: CanonicalMessage['delivery_status']
+  sync_version: number
 }
 
 interface OrderRow {
@@ -151,13 +153,13 @@ function toAccountingDocument(row: AccountingRow): AccountingDocument {
 export class ConversationRepository {
   constructor(private readonly database: LocalDatabase) {}
 
-  async upsert(ownerId: string, conversation: Conversation, syncedAt: string) {
+  async upsert(ownerId: string, conversation: Conversation, syncedAt: string, syncVersion = 0) {
     await this.database.run(
       `INSERT INTO cached_conversations (
         owner_id, project_id, server_id, source, robot_id, chat_id, customer_json,
         support_level, status, assignee_json, last_message, last_message_at,
-        unread_count, created_at, updated_at, deleted_at, synced_at, cache_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        unread_count, created_at, updated_at, deleted_at, synced_at, cache_status, sync_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_id, server_id) DO UPDATE SET
         project_id = excluded.project_id,
         source = excluded.source,
@@ -174,11 +176,16 @@ export class ConversationRepository {
         updated_at = excluded.updated_at,
         deleted_at = excluded.deleted_at,
         synced_at = excluded.synced_at,
-        cache_status = excluded.cache_status
+        cache_status = excluded.cache_status,
+        sync_version = excluded.sync_version
       WHERE (cached_conversations.deleted_at IS NULL
-        AND excluded.updated_at >= cached_conversations.updated_at)
+        AND (excluded.updated_at > cached_conversations.updated_at
+          OR (excluded.updated_at = cached_conversations.updated_at
+            AND excluded.sync_version >= cached_conversations.sync_version)))
         OR (cached_conversations.deleted_at IS NOT NULL
-        AND excluded.updated_at > cached_conversations.updated_at)`,
+        AND (excluded.updated_at > cached_conversations.updated_at
+          OR (excluded.updated_at = cached_conversations.updated_at
+            AND excluded.sync_version > cached_conversations.sync_version)))`,
       [
         ownerId,
         conversation.project_id,
@@ -198,16 +205,24 @@ export class ConversationRepository {
         conversation.deleted_at,
         syncedAt,
         'synced',
+        syncVersion,
       ],
     )
   }
 
-  async markDeleted(ownerId: string, id: string, deletedAt: string, syncedAt: string) {
+  async markDeleted(
+    ownerId: string,
+    id: string,
+    deletedAt: string,
+    syncedAt: string,
+    syncVersion = 0,
+  ) {
     await this.database.run(
       `UPDATE cached_conversations
-       SET deleted_at = ?, updated_at = ?, synced_at = ?, cache_status = 'deleted'
-       WHERE owner_id = ? AND server_id = ?`,
-      [deletedAt, deletedAt, syncedAt, ownerId, id],
+       SET deleted_at = ?, updated_at = ?, synced_at = ?, cache_status = 'deleted', sync_version = ?
+       WHERE owner_id = ? AND server_id = ?
+         AND (? > updated_at OR (? = updated_at AND ? > sync_version))`,
+      [deletedAt, deletedAt, syncedAt, syncVersion, ownerId, id, deletedAt, deletedAt, syncVersion],
     )
   }
 
@@ -219,10 +234,11 @@ export class ConversationRepository {
   ) {
     await this.database.run(
       `UPDATE cached_conversations
-       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted'
+       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted',
+           sync_version = sync_version + 1
        WHERE owner_id = ? AND deleted_at IS NULL
          AND server_id NOT IN (SELECT value FROM json_each(?))`,
-      [deletedAt, syncedAt, syncedAt, ownerId, JSON.stringify(retainedIds)],
+      [deletedAt, deletedAt, syncedAt, ownerId, JSON.stringify(retainedIds)],
     )
   }
 
@@ -303,7 +319,11 @@ export class MessageRepository {
     await this.database.run(
       `DELETE FROM cached_messages
        WHERE owner_id = ? AND conversation_id = ? AND server_id GLOB 'hub_*'
-         AND sender = ? AND text = ? AND sent_at = ? AND attachment_json IS ?`,
+         AND sender = ? AND text = ? AND sent_at = ?
+         AND (
+           (attachment_json IS NULL AND ? IS NULL)
+           OR (? IS NOT NULL AND json_extract(attachment_json, '$.id') = json_extract(?, '$.id'))
+         )`,
       [
         ownerId,
         message.conversation_id,
@@ -311,17 +331,25 @@ export class MessageRepository {
         message.text,
         message.sent_at,
         message.attachment ? JSON.stringify(message.attachment) : null,
+        message.attachment ? JSON.stringify(message.attachment) : null,
+        message.attachment ? JSON.stringify(message.attachment) : null,
       ],
     )
   }
 
-  async upsert(ownerId: string, message: CanonicalMessage, syncedAt: string) {
+  async upsert(
+    ownerId: string,
+    message: CanonicalMessage,
+    syncedAt: string,
+    syncVersion = 0,
+    force = false,
+  ) {
     await this.database.run(
       `INSERT INTO cached_messages (
         owner_id, server_id, conversation_id, client_mutation_id, sender,
         sender_id, text, attachment_json, sent_at, created_at, updated_at,
-        deleted_at, delivery_status, synced_at, cache_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        deleted_at, delivery_status, synced_at, cache_status, sync_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_id, server_id) DO UPDATE SET
         conversation_id = excluded.conversation_id,
         client_mutation_id = excluded.client_mutation_id,
@@ -335,8 +363,16 @@ export class MessageRepository {
         deleted_at = excluded.deleted_at,
         delivery_status = excluded.delivery_status,
         synced_at = excluded.synced_at,
-        cache_status = excluded.cache_status
-      WHERE excluded.updated_at >= cached_messages.updated_at`,
+        cache_status = excluded.cache_status,
+        sync_version = excluded.sync_version
+      WHERE ? = 1 OR (cached_messages.deleted_at IS NULL
+        AND (excluded.updated_at > cached_messages.updated_at
+          OR (excluded.updated_at = cached_messages.updated_at
+            AND excluded.sync_version >= cached_messages.sync_version)))
+        OR (cached_messages.deleted_at IS NOT NULL
+        AND (excluded.updated_at > cached_messages.updated_at
+          OR (excluded.updated_at = cached_messages.updated_at
+            AND excluded.sync_version > cached_messages.sync_version)))`,
       [
         ownerId,
         message.id,
@@ -353,16 +389,42 @@ export class MessageRepository {
         message.delivery_status,
         syncedAt,
         'synced',
+        syncVersion,
+        force ? 1 : 0,
       ],
     )
   }
 
-  async markDeleted(ownerId: string, id: string, deletedAt: string, syncedAt: string) {
+  async markDeleted(
+    ownerId: string,
+    id: string,
+    deletedAt: string,
+    syncedAt: string,
+    syncVersion = 0,
+  ) {
     await this.database.run(
       `UPDATE cached_messages
-       SET deleted_at = ?, updated_at = ?, synced_at = ?, cache_status = 'deleted'
-       WHERE owner_id = ? AND server_id = ?`,
-      [deletedAt, deletedAt, syncedAt, ownerId, id],
+       SET deleted_at = ?, updated_at = ?, synced_at = ?, cache_status = 'deleted', sync_version = ?
+       WHERE owner_id = ? AND server_id = ?
+         AND (? > updated_at OR (? = updated_at AND ? > sync_version))`,
+      [deletedAt, deletedAt, syncedAt, syncVersion, ownerId, id, deletedAt, deletedAt, syncVersion],
+    )
+  }
+
+  async markMissingDeleted(
+    ownerId: string,
+    conversationId: string,
+    retainedIds: string[],
+    deletedAt: string,
+    syncedAt: string,
+  ) {
+    await this.database.run(
+      `UPDATE cached_messages
+       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted',
+           sync_version = sync_version + 1
+       WHERE owner_id = ? AND conversation_id = ? AND deleted_at IS NULL
+         AND server_id NOT IN (SELECT value FROM json_each(?))`,
+      [deletedAt, deletedAt, syncedAt, ownerId, conversationId, JSON.stringify(retainedIds)],
     )
   }
 

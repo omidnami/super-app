@@ -227,4 +227,15 @@ export const MIGRATIONS: Migration[] = [
       DELETE FROM cached_conversations;
     `,
   },
+  {
+    version: 3,
+    name: 'add_chat_sync_versions',
+    sql: `
+      ALTER TABLE cached_conversations
+        ADD COLUMN sync_version INTEGER NOT NULL DEFAULT 0;
+
+      ALTER TABLE cached_messages
+        ADD COLUMN sync_version INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ]

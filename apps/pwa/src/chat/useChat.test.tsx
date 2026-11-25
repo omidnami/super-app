@@ -25,6 +25,7 @@ import {
   hubMessageSignature,
   mergeCanonicalMessages,
   normalizeHubMessage,
+  reconcileBacklog,
   useChat,
   type ChatSendResult,
   type MessageCache,
@@ -143,10 +144,12 @@ function createBacklogCache() {
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise
+    reject = rejectPromise
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 type RenderChatOptions = Partial<UseChatOptions> & {
@@ -704,7 +707,21 @@ describe('shared mock transport', () => {
 
 describe('useChat backlog reconciliation', () => {
   it('applies delta changes atomically and records the server sync time', async () => {
-    const missed = canonicalMessage('missed', { sent_at: '2026-11-25T10:05:00.000Z' })
+    const missed = canonicalMessage('missed', {
+      sent_at: '2026-11-25T10:05:00.000Z',
+      attachment: {
+        id: 'att_1',
+        provider: 'planet',
+        type: 'photo',
+        file_name: 'photo.png',
+        mime_type: 'image/png',
+        file_size: 5,
+        duration: null,
+        url: 'https://temporary.example/file',
+        download_url: 'https://temporary.example/download',
+        created_at: '2026-11-25T10:05:00.000Z',
+      } as Attachment,
+    })
     const serverTime = '2026-11-25T10:06:00.000Z'
     const backlog = createBacklogCache()
     const cache = { ...createCache(), backlog }
@@ -730,7 +747,15 @@ describe('useChat backlog reconciliation', () => {
     })
 
     await waitForReady(configured.result)
-    expect(configured.result.current.messages).toEqual([missed])
+    expect(configured.result.current.messages).toHaveLength(1)
+    expect(configured.result.current.messages[0]).toMatchObject({
+      id: missed.id,
+      attachment: { id: 'att_1', url: null },
+    })
+    expect(configured.result.current.messages[0]?.attachment).not.toHaveProperty('download_url')
+    expect(backlog.applyChanges.mock.calls[0]?.[2]?.[0]?.data).toMatchObject({
+      attachment: { id: 'att_1', url: null },
+    })
     expect(configured.result.current.lastSyncedAt).toBe(serverTime)
     expect(configured.result.current.syncStatus).toBe('success')
     expect(backlog.applyChanges).toHaveBeenCalledWith(
@@ -740,6 +765,64 @@ describe('useChat backlog reconciliation', () => {
       'cursor_1',
       serverTime,
     )
+  })
+
+  it('uses the persisted per-conversation cursor on a cold start', async () => {
+    const backlog = createBacklogCache()
+    vi.mocked(backlog.getState).mockResolvedValue({
+      cursor: 'saved_cursor',
+      lastSyncedAt: '2026-11-25T10:00:00.000Z',
+      status: 'success',
+    })
+    const sync = vi.fn<NonNullable<ConversationApi['sync']>>(async () => ({
+      changes: [],
+      next_cursor: 'next_cursor',
+      server_time: '2026-11-25T10:01:00.000Z',
+      has_more: false,
+    }))
+    const { result } = renderChat({
+      api: { ...apiWithListMessages(async () => messagePage([])), sync },
+      cache: { ...createCache(), backlog },
+    })
+
+    await waitForReady(result)
+    expect(sync).toHaveBeenCalledWith(
+      expect.objectContaining({ conversation_id: conversation.id, cursor: 'saved_cursor' }),
+      expect.any(Object),
+    )
+  })
+
+  it('commits the final cursor together with buffered live messages', async () => {
+    const pending = deferred<SyncResult>()
+    const backlog = createBacklogCache()
+    const { hub, result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([])),
+        sync: vi.fn(() => pending.promise),
+      },
+      cache: { ...createCache(), backlog },
+    })
+    await waitFor(() => expect(result.current.syncStatus).toBe('syncing'))
+    act(() => hub.simulateIncoming(incomingMessage))
+    act(() =>
+      pending.resolve({
+        changes: [],
+        next_cursor: 'cursor_with_buffer',
+        server_time: '2026-11-25T10:06:00.000Z',
+        has_more: false,
+      }),
+    )
+    await waitForReady(result)
+
+    const committed = backlog.applyChanges.mock.calls.at(-1)?.[2] || []
+    expect(committed).toEqual([
+      expect.objectContaining({
+        entity: 'message',
+        op: 'upsert',
+        data: expect.objectContaining({ text: incomingMessage.text }),
+      }),
+    ])
+    expect(backlog.applyChanges.mock.calls.at(-1)?.[3]).toBe('cursor_with_buffer')
   })
 
   it('fetches the missing delta after a real Hub reconnect', async () => {
@@ -868,6 +951,75 @@ describe('useChat backlog reconciliation', () => {
     await waitFor(() => expect(result.current.messages).toEqual([kept]))
   })
 
+  it('does not let an equal-timestamp stale delta resurrect a tombstoned message', async () => {
+    const message = canonicalMessage('versioned')
+    const change = (op: 'upsert' | 'delete', version: number): SyncChange => ({
+      entity: 'message',
+      id: message.id,
+      op,
+      version,
+      updated_at: message.updated_at,
+      deleted_at: op === 'delete' ? message.updated_at : null,
+      data: op === 'upsert' ? message : null,
+    })
+    const sync = vi
+      .fn<NonNullable<ConversationApi['sync']>>()
+      .mockResolvedValueOnce({
+        changes: [change('upsert', 2)],
+        next_cursor: 'cursor_1',
+        server_time: message.updated_at,
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        changes: [change('delete', 3)],
+        next_cursor: 'cursor_2',
+        server_time: message.updated_at,
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        changes: [change('upsert', 2)],
+        next_cursor: 'cursor_3',
+        server_time: message.updated_at,
+        has_more: false,
+      })
+    const { result } = renderChat({
+      api: { ...apiWithListMessages(async () => messagePage([])), sync },
+      cache: { ...createCache(), backlog: createBacklogCache() },
+    })
+    await waitForReady(result)
+    await act(async () => result.current.retry())
+    await waitFor(() => expect(result.current.messages).toEqual([]))
+    await act(async () => result.current.retry())
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(3))
+    expect(result.current.messages).toEqual([])
+  })
+
+  it('preserves live events that arrive while the offline cache is being read', async () => {
+    const syncResult = deferred<SyncResult>()
+    const cachedResult = deferred<Paginated<CanonicalMessage>>()
+    const cached = canonicalMessage('cached_history')
+    const cache = createCache()
+    vi.mocked(cache.listMessages).mockReturnValue(cachedResult.promise)
+    const { hub, result } = renderChat({
+      api: {
+        ...apiWithListMessages(async () => messagePage([])),
+        sync: vi.fn(() => syncResult.promise),
+      },
+      cache: { ...cache, backlog: createBacklogCache() },
+    })
+    await waitFor(() => expect(result.current.syncStatus).toBe('syncing'))
+    act(() => syncResult.reject(new Error('offline')))
+    await waitFor(() => expect(cache.listMessages).toHaveBeenCalledTimes(1))
+    act(() => hub.simulateIncoming(incomingMessage))
+    act(() => cachedResult.resolve(cachedPage([cached])))
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.messages.map((message) => message.text)).toEqual([
+      cached.text,
+      incomingMessage.text,
+    ])
+  })
+
   it('keeps readable offline history and the last successful sync time after a network error', async () => {
     const cached = canonicalMessage('cached')
     const cache = createCache()
@@ -894,6 +1046,30 @@ describe('useChat backlog reconciliation', () => {
     expect(result.current.isStale).toBe(true)
     expect(result.current.lastSyncedAt).toBe('2026-11-25T10:00:00.000Z')
     expect(result.current.syncStatus).toBe('error')
+  })
+
+  it('does not replace the cache with a truncated full snapshot', async () => {
+    const backlog = createBacklogCache()
+    let page = 0
+    const api: ConversationApi = {
+      ...apiWithListMessages(async () => {
+        page += 1
+        return messagePage([canonicalMessage(`snapshot_${page}`)], `cursor_${page}`)
+      }),
+      sync: vi.fn(async () => {
+        throw new PlanetApiError('cursor expired', 410)
+      }),
+    }
+
+    await expect(
+      reconcileBacklog({
+        api,
+        conversation,
+        ownerId: 'op_42',
+        cache: backlog,
+      }),
+    ).rejects.toThrow('safe page limit')
+    expect(backlog.replaceSnapshot).not.toHaveBeenCalled()
   })
 
   it('performs a full snapshot when the server cursor has expired', async () => {

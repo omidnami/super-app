@@ -1,5 +1,10 @@
 export { reconcileBacklog } from './backlog'
-export type { BacklogReconcileOptions, BacklogReconcileResult } from './backlog'
+export type {
+  BacklogReconcileOptions,
+  BacklogReconcileResult,
+  PendingBacklogCommit,
+  PendingSnapshotCommit,
+} from './backlog'
 export { useChat } from './useChat'
 export {
   createOptimisticMessage,

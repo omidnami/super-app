@@ -279,6 +279,18 @@ describe('BacklogRepository', () => {
       status: 'success',
     })
     expect(await repository.getState(OTHER_OWNER, 'conv_1')).toBeNull()
+    expect(
+      await database.get(
+        'SELECT sync_version FROM cached_conversations WHERE owner_id = ? AND server_id = ?',
+        [OWNER, 'conv_1'],
+      ),
+    ).toEqual({ sync_version: 1 })
+    expect(
+      await database.get(
+        'SELECT sync_version FROM cached_messages WHERE owner_id = ? AND server_id = ?',
+        [OWNER, 'msg_1'],
+      ),
+    ).toEqual({ sync_version: 1 })
   })
 
   it('merges gapped and duplicate pages without regressing newer records', async () => {
@@ -397,6 +409,7 @@ describe('BacklogRepository', () => {
     ).toMatchObject({
       deleted_at: T3,
       cache_status: 'deleted',
+      sync_version: 2,
     })
 
     await repository.applyChanges(
@@ -408,6 +421,44 @@ describe('BacklogRepository', () => {
     )
     expect(await new MessageRepository(database).list(OWNER, 'conv_1')).toMatchObject({ items: [] })
     expect(await repository.getState(OWNER, 'conv_1')).toMatchObject({ cursor: 'cursor_stale' })
+
+    const staleAtDeletion = message('msg_1', 'conv_1', { text: 'stale_equal', updated_at: T3 })
+    await repository.applyChanges(
+      OWNER,
+      'conv_1',
+      [
+        { ...upsertMessage(staleAtDeletion), version: 2 },
+        { ...upsertMessage(staleAtDeletion), version: 1 },
+      ],
+      'cursor_stale_equal',
+      T4,
+    )
+    expect(await new MessageRepository(database).list(OWNER, 'conv_1')).toMatchObject({ items: [] })
+    expect(
+      await database.get(
+        'SELECT deleted_at, sync_version FROM cached_messages WHERE server_id = ?',
+        ['msg_1'],
+      ),
+    ).toEqual({ deleted_at: T3, sync_version: 2 })
+
+    await repository.applyChanges(
+      OWNER,
+      'conv_1',
+      [
+        {
+          ...upsertMessage(message('msg_1', 'conv_1', { text: 'revived_equal', updated_at: T3 })),
+          version: 3,
+        },
+      ],
+      'cursor_revived_equal',
+      T4,
+    )
+    expect(await new MessageRepository(database).list(OWNER, 'conv_1')).toMatchObject({
+      items: [{ id: 'msg_1', text: 'revived_equal' }],
+    })
+    expect(
+      await database.get('SELECT sync_version FROM cached_messages WHERE server_id = ?', ['msg_1']),
+    ).toEqual({ sync_version: 3 })
   })
 
   it('tombstones snapshot omissions without deleting history or touching another scope', async () => {
@@ -454,7 +505,7 @@ describe('BacklogRepository', () => {
         OWNER,
         'msg_2',
       ]),
-    ).toMatchObject({ deleted_at: T5, cache_status: 'deleted' })
+    ).toMatchObject({ deleted_at: T5, cache_status: 'deleted', sync_version: 2 })
     expect(await database.all('SELECT * FROM cached_messages')).toHaveLength(4)
     expect(
       await database.get(
@@ -473,6 +524,35 @@ describe('BacklogRepository', () => {
       last_synced_at: T5,
       status: 'success',
     })
+
+    const staleSnapshotDelta = message('msg_2', 'conv_1', { text: 'stale', updated_at: T5 })
+    await repository.applyChanges(
+      OWNER,
+      'conv_1',
+      [
+        { ...upsertMessage(staleSnapshotDelta), version: 2 },
+        { ...upsertMessage(staleSnapshotDelta), version: 1 },
+      ],
+      'cursor_stale_snapshot_delta',
+      T5,
+    )
+    expect(
+      await database.get(
+        'SELECT deleted_at, sync_version FROM cached_messages WHERE server_id = ?',
+        ['msg_2'],
+      ),
+    ).toEqual({ deleted_at: T5, sync_version: 2 })
+
+    await repository.replaceSnapshot(
+      OWNER,
+      'conv_1',
+      [staleSnapshotDelta],
+      'cursor_snapshot_restore',
+      T5,
+    )
+    expect((await new MessageRepository(database).list(OWNER, 'conv_1')).items).toMatchObject([
+      { id: 'msg_2', text: 'stale', deleted_at: null },
+    ])
   })
 
   it('removes a matching synthetic hub duplicate before inserting the canonical message', async () => {

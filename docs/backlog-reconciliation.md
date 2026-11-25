@@ -16,8 +16,9 @@
 2. رویدادهای زنده در Buffer محلی نگه داشته می‌شوند.
 3. Cursor آخرین گفتگو از `sync_state` خوانده می‌شود.
 4. صفحه‌های Delta Sync از Planet دریافت می‌شوند.
-5. هر صفحه در یک Transaction محلی اعمال می‌شود.
-6. Cursor فقط پس از Commit موفق جلو می‌رود.
+5. صفحه‌های میانی در Transaction اعمال می‌شوند.
+6. صفحه نهایی و رویدادهای Buffer در یک Transaction نهایی ادغام می‌شوند.
+7. Cursor فقط پس از Commit موفق نهایی جلو می‌رود.
 7. تاریخچه آخرین صفحه و Buffer با شناسه Canonical ادغام می‌شوند.
 8. زمان `server_time` به‌عنوان آخرین سینک ثبت می‌شود.
 
@@ -28,13 +29,15 @@
 - Dataset به‌ازای هر Conversation: `chat:{conversation_id}`
 - داده‌ها با Scope اپراتور/پروژه ایزوله می‌شوند.
 - Cursor منقضی (`410`) باعث Full Snapshot می‌شود.
-- Snapshot کامل، رکوردهای غایب را Tombstone می‌کند و Cursor را Reset می‌کند.
+- Snapshot کامل، رکوردهای غایب را Tombstone می‌کند و Cursor را Reset می‌کند؛ Snapshot ناقص هرگز جایگزین Cache نمی‌شود.
 
 ---
 
 ## ۴. Dedup و حذف
 
 - Upsert بر اساس Canonical `message_id`
+- URL و فیلدهای موقت Provider پیش از ذخیره Sync حذف می‌شوند
+- Tombstone با `updated_at` و `version` در برابر Upsert قدیمی مقاوم است
 - حذف synthetic `hub_*` هنگام رسیدن نسخه Canonical هم‌متن
 - حذف سرور با `deleted_at` از تاریخچه قابل‌مشاهده خارج می‌شود
 - Crash یا Change نامعتبر، داده و Cursor را Rollback می‌کند

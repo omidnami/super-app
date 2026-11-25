@@ -83,7 +83,22 @@ describe('local database and sync core', () => {
   it('runs versioned migrations idempotently', async () => {
     await runMigrations(database)
     const rows = await database.all<{ version: number }>('SELECT version FROM schema_migrations')
-    expect(rows.map((row) => row.version)).toEqual([1, 2])
+    expect(rows.map((row) => row.version)).toEqual([1, 2, 3])
+
+    for (const table of ['cached_conversations', 'cached_messages']) {
+      const columns = await database.all<{
+        name: string
+        type: string
+        notnull: number
+        dflt_value: string
+      }>(`PRAGMA table_info(${table})`)
+      expect(columns.find((column) => column.name === 'sync_version')).toMatchObject({
+        name: 'sync_version',
+        type: 'INTEGER',
+        notnull: 1,
+        dflt_value: '0',
+      })
+    }
   })
 
   it('removes legacy project-only conversation cache during the operator-scope migration', async () => {
@@ -216,20 +231,45 @@ describe('local database and sync core', () => {
 
     expect(await repository.get(scope, 'conv_2')).toBeNull()
     expect(await database.all('SELECT * FROM cached_conversations')).toHaveLength(2)
+    expect(
+      await database.get(
+        'SELECT deleted_at, updated_at, sync_version FROM cached_conversations WHERE server_id = ?',
+        ['conv_2'],
+      ),
+    ).toEqual({
+      deleted_at: '2026-11-25T10:05:00.000Z',
+      updated_at: '2026-11-25T10:05:00.000Z',
+      sync_version: 1,
+    })
 
     await repository.upsert(
       scope,
       { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:04:00.000Z' },
       '2026-11-25T10:06:00.000Z',
+      99,
     )
     expect(await repository.get(scope, 'conv_2')).toBeNull()
 
     await repository.upsert(
       scope,
-      { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:06:00.000Z' },
+      { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:05:00.000Z' },
       '2026-11-25T10:06:00.000Z',
+      1,
+    )
+    expect(await repository.get(scope, 'conv_2')).toBeNull()
+
+    await repository.upsert(
+      scope,
+      { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:05:00.000Z' },
+      '2026-11-25T10:06:00.000Z',
+      2,
     )
     expect(await repository.get(scope, 'conv_2')).not.toBeNull()
+    expect(
+      await database.get('SELECT sync_version FROM cached_conversations WHERE server_id = ?', [
+        'conv_2',
+      ]),
+    ).toEqual({ sync_version: 2 })
   })
 
   it('orders messages chronologically', async () => {
@@ -334,6 +374,145 @@ describe('local database and sync core', () => {
       cursor: 'cursor_1',
       status: 'success',
     })
+    expect(
+      await database.get('SELECT sync_version FROM cached_conversations WHERE server_id = ?', [
+        'conv_1',
+      ]),
+    ).toEqual({ sync_version: 1 })
+    expect(
+      await database.get('SELECT sync_version FROM cached_messages WHERE server_id = ?', ['msg_1']),
+    ).toEqual({ sync_version: 1 })
+  })
+
+  it('uses sync versions to protect tombstones and reject stale deletes', async () => {
+    const engine = new SyncEngine(database)
+    const deletedAt = '2026-11-25T10:05:00.000Z'
+    const newerAt = '2026-11-25T10:06:00.000Z'
+    const upserts = (updatedAt: string, version: number, label: string): SyncChange[] => [
+      {
+        entity: 'conversation',
+        id: 'conv_1',
+        op: 'upsert',
+        version,
+        updated_at: updatedAt,
+        deleted_at: null,
+        data: { ...conversation, updated_at: updatedAt, last_message: label },
+      },
+      {
+        entity: 'message',
+        id: 'msg_1',
+        op: 'upsert',
+        version,
+        updated_at: updatedAt,
+        deleted_at: null,
+        data: { ...message, updated_at: updatedAt, text: label },
+      },
+    ]
+    const deletes = (updatedAt: string, version: number): SyncChange[] => [
+      {
+        entity: 'conversation',
+        id: 'conv_1',
+        op: 'delete',
+        version,
+        updated_at: updatedAt,
+        deleted_at: updatedAt,
+        data: null,
+      },
+      {
+        entity: 'message',
+        id: 'msg_1',
+        op: 'delete',
+        version,
+        updated_at: updatedAt,
+        deleted_at: updatedAt,
+        data: null,
+      },
+    ]
+
+    await engine.applyChatChanges('prj_12', upserts(message.updated_at, 1, 'initial'), 'cursor_1')
+    await engine.applyChatChanges('prj_12', deletes(deletedAt, 2), 'cursor_2')
+
+    for (const version of [1, 2]) {
+      await engine.applyChatChanges(
+        'prj_12',
+        upserts(deletedAt, version, `stale_${version}`),
+        `cursor_stale_${version}`,
+      )
+    }
+
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toBeNull()
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [],
+    })
+    expect(
+      await database.get(
+        'SELECT deleted_at, updated_at, sync_version FROM cached_conversations WHERE server_id = ?',
+        ['conv_1'],
+      ),
+    ).toEqual({ deleted_at: deletedAt, updated_at: deletedAt, sync_version: 2 })
+    expect(
+      await database.get(
+        'SELECT deleted_at, updated_at, sync_version FROM cached_messages WHERE server_id = ?',
+        ['msg_1'],
+      ),
+    ).toEqual({ deleted_at: deletedAt, updated_at: deletedAt, sync_version: 2 })
+
+    await engine.applyChatChanges('prj_12', upserts(deletedAt, 3, 'revived'), 'cursor_3')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toMatchObject({
+      last_message: 'revived',
+    })
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [{ text: 'revived' }],
+    })
+
+    await engine.applyChatChanges('prj_12', upserts(deletedAt, 2, 'stale_live'), 'cursor_4')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toMatchObject({
+      last_message: 'revived',
+    })
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [{ text: 'revived' }],
+    })
+
+    await engine.applyChatChanges('prj_12', upserts(deletedAt, 3, 'same_version'), 'cursor_5')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toMatchObject({
+      last_message: 'same_version',
+    })
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [{ text: 'same_version' }],
+    })
+
+    await engine.applyChatChanges(
+      'prj_12',
+      deletes('2026-11-25T10:04:00.000Z', 99),
+      'cursor_stale_delete_time',
+    )
+    await engine.applyChatChanges('prj_12', deletes(deletedAt, 3), 'cursor_stale_delete_version')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).not.toBeNull()
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [{ text: 'same_version' }],
+    })
+
+    await engine.applyChatChanges('prj_12', deletes(deletedAt, 4), 'cursor_6')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toBeNull()
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [],
+    })
+
+    await engine.applyChatChanges('prj_12', upserts(newerAt, 1, 'revived_by_time'), 'cursor_7')
+    expect(await new ConversationRepository(database).get('prj_12', 'conv_1')).toMatchObject({
+      last_message: 'revived_by_time',
+    })
+    expect(await new MessageRepository(database).list('prj_12', 'conv_1')).toMatchObject({
+      items: [{ text: 'revived_by_time' }],
+    })
+    expect(
+      await database.get('SELECT sync_version FROM cached_conversations WHERE server_id = ?', [
+        'conv_1',
+      ]),
+    ).toEqual({ sync_version: 1 })
+    expect(
+      await database.get('SELECT sync_version FROM cached_messages WHERE server_id = ?', ['msg_1']),
+    ).toEqual({ sync_version: 1 })
   })
 
   it('keeps user data isolated', async () => {

@@ -42,14 +42,32 @@ function historyErrorMessage(error: unknown) {
   return DEFAULT_HISTORY_ERROR
 }
 
+interface MessageChangeMeta {
+  updatedAt: string
+  version: number
+}
+
+function changeIsNewer(change: SyncChange, existing?: MessageChangeMeta) {
+  if (!existing) return true
+  const updatedAt = Date.parse(change.updated_at) || 0
+  const existingUpdatedAt = Date.parse(existing.updatedAt) || 0
+  return (
+    updatedAt > existingUpdatedAt ||
+    (updatedAt === existingUpdatedAt && change.version > existing.version)
+  )
+}
+
 function applySyncChanges(
   current: CanonicalMessage[],
   changes: SyncChange[],
   conversation: Conversation,
+  changeMeta: Map<string, MessageChangeMeta>,
 ) {
   let next = current
   for (const change of changes) {
     if (change.entity !== 'message') continue
+    if (!changeIsNewer(change, changeMeta.get(change.id))) continue
+    changeMeta.set(change.id, { updatedAt: change.updated_at, version: change.version })
     if (change.op === 'delete') {
       next = next.filter((message) => message.id !== change.id)
       continue
@@ -99,6 +117,8 @@ export function useChat({
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   const messagesRef = useRef<CanonicalMessage[]>([])
+  const messageChangeMetaRef = useRef(new Map<string, MessageChangeMeta>())
+  const liveMessageIdsRef = useRef(new Set<string>())
   const conversationRef = useRef(conversation)
   const historyGenerationRef = useRef(0)
   const scopeGenerationRef = useRef(0)
@@ -226,6 +246,9 @@ export function useChat({
         scopeGenerationRef.current += 1
         activeSendsRef.current.clear()
         localSignaturesRef.current.clear()
+        messageChangeMetaRef.current.clear()
+        liveMessageIdsRef.current.clear()
+        bufferedEventsRef.current = []
         backlogCursorRef.current = null
         setActiveSendCount(0)
         setLastDeliveredMutationId(null)
@@ -233,7 +256,6 @@ export function useChat({
         updateMessages(() => [])
       }
       loadingMoreRef.current = false
-      bufferedEventsRef.current = []
       initialLoadingRef.current = true
       setIsLoadingMore(false)
       setStatus('loading')
@@ -250,8 +272,9 @@ export function useChat({
           ownerId,
           accessToken,
           cache: cache?.backlog,
-          cursor: backlogCursorRef.current,
+          cursor: backlogCursorRef.current || undefined,
           signal: controller.signal,
+          deferFinalCommit: true,
         })
         if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted) return
         backlogCursorRef.current = backlog.cursor
@@ -264,20 +287,78 @@ export function useChat({
         )
         if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted) return
 
-        initialLoadingRef.current = false
-        const buffered = bufferedEventsRef.current
-        bufferedEventsRef.current = []
+        const buffered = [...bufferedEventsRef.current]
         let next = backlog.snapshot
           ? mergeCanonicalMessages([], backlog.snapshot, conversation)
           : messagesRef.current
-        next = applySyncChanges(next, backlog.changes, conversation)
+        if (backlog.snapshot) {
+          messageChangeMetaRef.current.clear()
+          for (const message of backlog.snapshot) {
+            messageChangeMetaRef.current.set(message.id, {
+              updatedAt: message.updated_at,
+              version: 0,
+            })
+          }
+        }
+        next = applySyncChanges(next, backlog.changes, conversation, messageChangeMetaRef.current)
+        if (backlog.pendingCommit) {
+          next = applySyncChanges(
+            next,
+            backlog.pendingCommit.changes,
+            conversation,
+            messageChangeMetaRef.current,
+          )
+        }
         next = mergeCanonicalMessages(next, page.items, conversation)
         for (const event of buffered) next = mergeCanonicalMessages(next, [event], conversation)
-        updateMessages(() => next)
         const bufferedToStore = buffered.filter((event) =>
           next.some((message) => message.id === event.id),
         )
-        void persistCanonical(conversation.id, bufferedToStore)
+
+        if (cache?.backlog && backlog.pendingCommit) {
+          const bufferedChanges: SyncChange[] = bufferedToStore.map((message) => ({
+            entity: 'message',
+            id: message.id,
+            op: 'upsert',
+            version: 0,
+            updated_at: message.updated_at,
+            deleted_at: null,
+            data: message,
+          }))
+          await cache.backlog.applyChanges(
+            ownerId,
+            conversation.id,
+            [...backlog.pendingCommit.changes, ...bufferedChanges],
+            backlog.pendingCommit.nextCursor,
+            backlog.pendingCommit.syncedAt,
+          )
+          backlogCursorRef.current = backlog.pendingCommit.nextCursor
+          setLastSyncedAt(backlog.pendingCommit.syncedAt)
+        } else if (cache?.backlog && backlog.pendingSnapshot) {
+          await cache.backlog.replaceSnapshot(
+            ownerId,
+            conversation.id,
+            [...backlog.pendingSnapshot.messages, ...bufferedToStore],
+            backlog.pendingSnapshot.nextCursor,
+            backlog.pendingSnapshot.syncedAt,
+          )
+          backlogCursorRef.current = backlog.pendingSnapshot.nextCursor
+          setLastSyncedAt(backlog.pendingSnapshot.syncedAt)
+        } else {
+          backlogCursorRef.current = backlog.cursor
+          if (backlog.lastSyncedAt) setLastSyncedAt(backlog.lastSyncedAt)
+        }
+
+        bufferedEventsRef.current = bufferedEventsRef.current.slice(buffered.length)
+        initialLoadingRef.current = false
+        const lateEvents = bufferedEventsRef.current
+        bufferedEventsRef.current = []
+        for (const event of lateEvents) next = mergeCanonicalMessages(next, [event], conversation)
+        updateMessages(() => next)
+        const lateToStore = lateEvents.filter((event) =>
+          next.some((message) => message.id === event.id),
+        )
+        void persistCanonical(conversation.id, lateToStore)
         setNextCursor(page.next_cursor)
         setHasMore(Boolean(page.has_more && page.next_cursor))
         setDataSource(source)
@@ -291,9 +372,6 @@ export function useChat({
         ) {
           return
         }
-        initialLoadingRef.current = false
-        const buffered = bufferedEventsRef.current
-        bufferedEventsRef.current = []
         const authError =
           requestError instanceof PlanetApiError &&
           (requestError.status === 401 || requestError.status === 403)
@@ -311,14 +389,25 @@ export function useChat({
             const cached = await cache.listMessages(ownerId, conversation.id, { limit: pageSize })
             if (requestGeneration !== historyGenerationRef.current || controller.signal.aborted)
               return
-            let next = cached.items.map((message) => ({
-              ...message,
-              attachment: sanitizeAttachment(message.attachment),
-            }))
+            initialLoadingRef.current = false
+            const buffered = bufferedEventsRef.current
+            bufferedEventsRef.current = []
+            let next = mergeCanonicalMessages(
+              cached.items.map((message) => ({
+                ...message,
+                attachment: sanitizeAttachment(message.attachment),
+              })),
+              messagesRef.current.filter((message) => liveMessageIdsRef.current.has(message.id)),
+              conversation,
+            )
             for (const event of buffered) {
               next = mergeCanonicalMessages(next, [event], conversation)
             }
             updateMessages(() => next)
+            const bufferedToStore = buffered.filter((event) =>
+              next.some((message) => message.id === event.id),
+            )
+            void persistCanonical(conversation.id, bufferedToStore)
             setNextCursor(cached.next_cursor)
             setHasMore(Boolean(cached.has_more && cached.next_cursor))
             setDataSource('cache')
@@ -330,7 +419,19 @@ export function useChat({
             // Fall through to the error state when no readable cache exists.
           }
         }
-        updateMessages(() => [])
+        initialLoadingRef.current = false
+        const buffered = bufferedEventsRef.current
+        bufferedEventsRef.current = []
+        if (authError) {
+          updateMessages(() => [])
+        } else {
+          let next = messagesRef.current
+          for (const event of buffered) {
+            next = mergeCanonicalMessages(next, [event], conversation)
+          }
+          updateMessages(() => next)
+          void persistCanonical(conversation.id, buffered)
+        }
         setNextCursor(null)
         setHasMore(false)
         setDataSource(null)
@@ -382,6 +483,11 @@ export function useChat({
       subscribe((message) => {
         const canonical = normalizeHubMessage(message, conversationRef.current, senderId)
         if (!canonical || localSignaturesRef.current.has(hubMessageSignature(message))) return
+        liveMessageIdsRef.current.add(canonical.id)
+        messageChangeMetaRef.current.set(canonical.id, {
+          updatedAt: canonical.updated_at,
+          version: 0,
+        })
         if (initialLoadingRef.current) {
           bufferedEventsRef.current.push(canonical)
           return
@@ -478,6 +584,7 @@ export function useChat({
       )
       const wireMessage = toHubMessage(optimistic, conversation)
       localSignaturesRef.current.add(hubMessageSignature(wireMessage))
+      liveMessageIdsRef.current.add(optimistic.id)
       setError(null)
       setSendActive(clientMutationId, true)
       updateMessages((current) => mergeCanonicalMessages(current, [optimistic], conversation))
@@ -489,10 +596,16 @@ export function useChat({
         if (ack.status) {
           setLastDeliveredMutationId(clientMutationId)
           if (ack.canonical) {
+            liveMessageIdsRef.current.delete(optimistic.id)
+            liveMessageIdsRef.current.add(ack.canonical.id)
             const canonical = {
               ...ack.canonical,
               attachment: sanitizeAttachment(ack.canonical.attachment),
             }
+            messageChangeMetaRef.current.set(canonical.id, {
+              updatedAt: canonical.updated_at,
+              version: 0,
+            })
             void persistCanonical(conversation.id, [canonical])
             updateMessages((current) =>
               mergeCanonicalMessages(

@@ -85,20 +85,33 @@ export class BacklogRepository {
       for (const change of changes) {
         if (change.entity !== 'conversation') continue
         if (change.op === 'delete') {
-          await this.markConversationDeleted(transaction, ownerId, change, syncedAt)
+          await conversations.markDeleted(
+            ownerId,
+            change.id,
+            change.deleted_at || change.updated_at,
+            syncedAt,
+            change.version,
+          )
         } else {
-          await conversations.upsert(ownerId, change.data as Conversation, syncedAt)
+          await conversations.upsert(ownerId, change.data as Conversation, syncedAt, change.version)
         }
       }
 
       for (const change of changes) {
         if (change.entity !== 'message') continue
         if (change.op === 'delete') {
-          await this.markMessageDeleted(transaction, ownerId, conversationId, change, syncedAt)
+          await this.markMessageDeleted(
+            transaction,
+            messages,
+            ownerId,
+            conversationId,
+            change,
+            syncedAt,
+          )
         } else {
           const message = change.data as CanonicalMessage
           await messages.deleteSyntheticDuplicate(ownerId, message)
-          await messages.upsert(ownerId, message, syncedAt)
+          await messages.upsert(ownerId, message, syncedAt, change.version)
         }
       }
 
@@ -124,22 +137,25 @@ export class BacklogRepository {
 
       for (const message of messages) {
         await messageRepository.deleteSyntheticDuplicate(ownerId, message)
-        await messageRepository.upsert(ownerId, message, syncedAt)
+        const existing = await transaction.get<{ sync_version: number }>(
+          'SELECT sync_version FROM cached_messages WHERE owner_id = ? AND server_id = ?',
+          [ownerId, message.id],
+        )
+        await messageRepository.upsert(
+          ownerId,
+          message,
+          syncedAt,
+          existing?.sync_version || 0,
+          true,
+        )
       }
 
-      await transaction.run(
-        `UPDATE cached_messages
-         SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted'
-         WHERE owner_id = ? AND conversation_id = ? AND deleted_at IS NULL
-           AND server_id NOT IN (SELECT value FROM json_each(?))`,
-        [
-          syncedAt,
-          syncedAt,
-          syncedAt,
-          ownerId,
-          conversationId,
-          JSON.stringify(messages.map((message) => message.id)),
-        ],
+      await messageRepository.markMissingDeleted(
+        ownerId,
+        conversationId,
+        messages.map((message) => message.id),
+        syncedAt,
+        syncedAt,
       )
 
       await syncState.upsert(ownerId, datasetFor(conversationId), {
@@ -150,23 +166,9 @@ export class BacklogRepository {
     })
   }
 
-  private async markConversationDeleted(
-    database: LocalDatabase,
-    ownerId: string,
-    change: SyncChange,
-    syncedAt: string,
-  ) {
-    const deletedAt = change.deleted_at || change.updated_at
-    await database.run(
-      `UPDATE cached_conversations
-       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted'
-       WHERE owner_id = ? AND server_id = ? AND updated_at <= ?`,
-      [deletedAt, deletedAt, syncedAt, ownerId, change.id, deletedAt],
-    )
-  }
-
   private async markMessageDeleted(
     database: LocalDatabase,
+    messages: MessageRepository,
     ownerId: string,
     conversationId: string,
     change: SyncChange,
@@ -181,12 +183,12 @@ export class BacklogRepository {
       throw new Error(`Message ${change.id} does not belong to ${conversationId}`)
     }
 
-    const deletedAt = change.deleted_at || change.updated_at
-    await database.run(
-      `UPDATE cached_messages
-       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted'
-       WHERE owner_id = ? AND server_id = ? AND conversation_id = ? AND updated_at <= ?`,
-      [deletedAt, deletedAt, syncedAt, ownerId, change.id, conversationId, deletedAt],
+    await messages.markDeleted(
+      ownerId,
+      change.id,
+      change.deleted_at || change.updated_at,
+      syncedAt,
+      change.version,
     )
   }
 }

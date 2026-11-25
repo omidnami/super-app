@@ -53,7 +53,8 @@ export function createMobileConversationCache(scope: string): MobileMessagingCac
       for (const change of changes) {
         if (
           change.entity === 'conversation' &&
-          (change.data as Conversation | null)?.project_id !== projectId
+          change.data &&
+          (change.data as Conversation).project_id !== projectId
         ) {
           throw new Error('Conversation project does not match the active messaging session')
         }

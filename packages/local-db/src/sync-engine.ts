@@ -51,10 +51,16 @@ export class SyncEngine {
               change.id,
               change.deleted_at || change.updated_at,
               syncedAt,
+              change.version,
             )
           } else {
             if (!change.data) throw new Error(`Conversation ${change.id} has no data`)
-            await conversations.upsert(ownerId, change.data as Conversation, syncedAt)
+            await conversations.upsert(
+              ownerId,
+              change.data as Conversation,
+              syncedAt,
+              change.version,
+            )
           }
         } else {
           if (change.op === 'delete') {
@@ -63,10 +69,16 @@ export class SyncEngine {
               change.id,
               change.deleted_at || change.updated_at,
               syncedAt,
+              change.version,
             )
           } else {
             if (!change.data) throw new Error(`Message ${change.id} has no data`)
-            await messages.upsert(ownerId, change.data as CanonicalMessage, syncedAt)
+            await messages.upsert(
+              ownerId,
+              change.data as CanonicalMessage,
+              syncedAt,
+              change.version,
+            )
           }
         }
       }
