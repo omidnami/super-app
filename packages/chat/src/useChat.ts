@@ -436,7 +436,6 @@ export function useChat({
               return
             initialLoadingRef.current = false
             const buffered = bufferedEventsRef.current
-            bufferedEventsRef.current = []
             let next = mergeCanonicalMessages(
               cached.items.map((message) => ({
                 ...message,
@@ -450,10 +449,6 @@ export function useChat({
             }
             recordMessageMetadata(next, messageChangeMetaRef.current)
             updateMessages(() => next)
-            const bufferedToStore = buffered.filter((event) =>
-              next.some((message) => message.id === event.id),
-            )
-            void persistCanonical(conversation.id, bufferedToStore)
             setNextCursor(cached.next_cursor)
             setHasMore(Boolean(cached.has_more && cached.next_cursor))
             setDataSource('cache')
@@ -467,8 +462,8 @@ export function useChat({
         }
         initialLoadingRef.current = false
         const buffered = bufferedEventsRef.current
-        bufferedEventsRef.current = []
         if (authError) {
+          bufferedEventsRef.current = []
           updateMessages(() => [])
         } else {
           let next = messagesRef.current
@@ -476,7 +471,6 @@ export function useChat({
             next = mergeCanonicalMessages(next, [event], conversation)
           }
           updateMessages(() => next)
-          void persistCanonical(conversation.id, buffered)
         }
         setNextCursor(null)
         setHasMore(false)

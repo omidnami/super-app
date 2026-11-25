@@ -20,6 +20,7 @@
 6. رویدادهای Buffer، از جمله رویدادهای رسیده حین Transaction، به‌صورت durable ذخیره می‌شوند.
 7. Cursor فقط پس از ذخیره موفق Buffer در Commit جداگانه جلو می‌رود.
 8. Crash قبل از Commit Cursor باعث Replay و Dedup می‌شود، نه Gap.
+9. اگر ذخیره Buffer شکست بخورد، رویداد در صف Retry باقی می‌ماند و Cursor عقب می‌ماند.
 7. تاریخچه آخرین صفحه و Buffer با شناسه Canonical ادغام می‌شوند.
 8. زمان `server_time` به‌عنوان آخرین سینک ثبت می‌شود.
 

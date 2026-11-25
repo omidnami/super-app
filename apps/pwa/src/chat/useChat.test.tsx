@@ -875,6 +875,20 @@ describe('useChat backlog reconciliation', () => {
     expect(backlog.commitCursor).not.toHaveBeenCalled()
     expect(result.current.messages.map((message) => message.text)).toContain(incomingMessage.text)
     expect(result.current.isStale).toBe(true)
+
+    vi.mocked(cache.saveMessages).mockResolvedValue(undefined)
+    await act(async () => result.current.retry())
+    await waitFor(() =>
+      expect(backlog.commitCursor).toHaveBeenCalledWith(
+        'op_42',
+        conversation.id,
+        'cursor_must_not_commit',
+        '2026-11-25T10:06:00.000Z',
+      ),
+    )
+    expect(cache.saveMessages).toHaveBeenCalledWith('op_42', conversation.id, [
+      expect.objectContaining({ text: incomingMessage.text }),
+    ])
   })
 
   it('fetches the missing delta after a real Hub reconnect', async () => {

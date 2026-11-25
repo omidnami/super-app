@@ -1056,3 +1056,4 @@ Blockerها:
 | 1.22 | 2026-11-25 | سخت‌سازی STEP-11: Sanitize رسانه، Commit نهایی با Buffer، حفظ Cursor و رویدادها، Snapshot کامل و Tombstone نسخه‌آگاه |
 | 1.23 | 2026-11-25 | جداسازی ذخیره Buffer از Commit Cursor و ثبت Metadata نسخه پیام‌های History/Cache |
 | 1.24 | 2026-11-25 | جلوگیری از Advance Cursor هنگام شکست ذخیره Buffer و افزودن تست خطای دیسک |
+| 1.25 | 2026-11-25 | حفظ رویدادهای ذخیره‌نشده در صف Retry تا Commit موفق بعدی |
