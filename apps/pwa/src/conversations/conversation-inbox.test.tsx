@@ -181,6 +181,33 @@ describe('conversation inbox data', () => {
     )
   })
 
+  it('does not tombstone a cache from an inconsistent pagination payload', async () => {
+    const malformed = {
+      items: [],
+      next_cursor: null,
+      has_more: true,
+    } as unknown as ConversationPage
+    const cache = createCache()
+    const api = apiWithList(async () => malformed)
+    const { result } = renderHook(() =>
+      useConversationInbox({
+        api,
+        ownerId: 'prj_12',
+        cache,
+        searchDebounceMs: 0,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(cache.save).toHaveBeenCalledWith(
+      'prj_12',
+      expect.any(Object),
+      malformed,
+      undefined,
+      undefined,
+    )
+  })
+
   it('does not write a stale response to the cache after filters change', async () => {
     let resolveFirst!: (value: ConversationPage) => void
     const firstRequest = new Promise<ConversationPage>((resolve) => {
@@ -382,6 +409,23 @@ describe('Planet conversation API', () => {
       limit: '30',
     })
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer session_token')
+  })
+
+  it('rejects inconsistent pagination payloads before they reach the cache', async () => {
+    const api = createPlanetConversationApi({
+      baseUrl: 'https://planet.superapp.local',
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            status: true,
+            data: { items: [], next_cursor: null, has_more: true },
+          }),
+          { status: 200 },
+        ),
+    })
+
+    await expect(api.list()).rejects.toBeInstanceOf(PlanetApiError)
+    await expect(api.list()).rejects.toMatchObject({ message: 'پاسخ فهرست گفتگوها معتبر نیست.' })
   })
 
   it('turns non-success responses into a typed API error', async () => {

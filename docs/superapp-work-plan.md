@@ -976,7 +976,7 @@ Blockerها:
 | 2026-11-25 | STEP-05 | Done | lint، typecheck، format:check و ۲۴ تست (۱۱ Package + ۱۲ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/auth`، Mock Adapter، Session مستقل پیام‌رسان/مدیریت حساب، Connect/Disconnect/Expire، Storage جداگانه و دسترسی CRM بدون Auth آماده‌اند؛ مستند در `docs/service-auth.md`؛ استپ بعدی STEP-06 |
 | 2026-11-25 | STEP-06 | Done | lint، typecheck، format:check و ۲۹ تست (۱۱ Package + ۱۷ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/hub-client`، Ticket Adapter، Socket.IO Transport، Reconnect، Refresh Ticket، Buffer رویدادها و Demo اتصال آماده‌اند؛ مستند در `docs/hub-client.md`؛ استپ بعدی STEP-07 |
 | 2026-11-25 | STEP-07 | Done | lint، typecheck، format:check و ۳۶ تست (۱۱ Package + ۲۴ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/local-db`، Schema و Migration، Repositoryهای typed، Upsert اتمیک، Tombstone، Cursor و Sync Engine آماده‌اند؛ مستند در `docs/local-db.md`؛ استپ بعدی STEP-08 |
-| 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۵۷ تست (۱۱ Package + ۴۵ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، فیلترها، Pagination، Adapter قابل‌تنظیم Planet، Fallback فقط شبکه، Cache با Scope اپراتور/پروژه، پاک‌سازی Logout، Tombstone در Snapshot و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
+| 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۶۱ تست (۱۱ Package + ۴۷ PWA + ۳ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، فیلترها، Pagination، Adapter قابل‌تنظیم Planet، Fallback فقط شبکه، Cache با Scope اپراتور/پروژه، پاک‌سازی Logout، Tombstone در Snapshot و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
 
 ---
 
@@ -1041,3 +1041,4 @@ Blockerها:
 | 1.10 | 2026-11-25 | تکمیل STEP-07، ایجاد SQLite، Migration، Repositoryها، Sync Engine، Tombstone و تست‌های اتمیک |
 | 1.11 | 2026-11-25 | تکمیل STEP-08، ایجاد صف گفتگوها، فیلترها، Pagination، Adapter Planet، Cache آفلاین موبایل و مسیر گفتگو |
 | 1.12 | 2026-11-25 | سخت‌سازی STEP-08: اتصال واقعی قابل‌تنظیم، جلوگیری از Fallback روی خطای سرور، Scope اپراتور/پروژه، پاک‌سازی Cache در Logout، Migration امن و Tombstone در Snapshot |
+| 1.13 | 2026-11-25 | رفع Race ذخیره Cache پس از Logout، اعتبارسنجی Pagination و مقاومت Tombstone در برابر Upsert قدیمی |

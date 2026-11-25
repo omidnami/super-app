@@ -30,10 +30,12 @@ export function createMobileConversationCache(scope: string): ConversationCache 
   const existing = caches.get(scope)
   if (existing) return existing
 
+  let active = true
   const cache: ConversationCache = {
     async list(ownerId, query: ConversationListQuery) {
+      if (!active) return { items: [], next_cursor: null, has_more: false }
       const database = await getDatabase()
-      return new ConversationRepository(database).list(ownerId, {
+      const result = await new ConversationRepository(database).list(ownerId, {
         search: query.search,
         source: query.source,
         supportLevel: query.support_level,
@@ -43,12 +45,15 @@ export function createMobileConversationCache(scope: string): ConversationCache 
         cursor: query.cursor,
         limit: query.limit,
       })
+      return active ? result : { items: [], next_cursor: null, has_more: false }
     },
 
     async save(ownerId, _query, page, syncedAt = new Date().toISOString(), completeSnapshot) {
+      if (!active) return
       const { projectId } = parseConversationCacheScope(ownerId)
       const database = await getDatabase()
       await database.transaction(async (transaction) => {
+        if (!active) return
         const conversations = new ConversationRepository(transaction)
         const itemsToUpsert = completeSnapshot || page.items
         for (const conversation of itemsToUpsert) {
@@ -69,7 +74,9 @@ export function createMobileConversationCache(scope: string): ConversationCache 
     },
 
     async clear(ownerId) {
+      if (!active) return
       parseConversationCacheScope(ownerId)
+      active = false
       const database = await getDatabase()
       await database.transaction(async (transaction) => {
         await transaction.run('DELETE FROM cached_messages WHERE owner_id = ?', [ownerId])

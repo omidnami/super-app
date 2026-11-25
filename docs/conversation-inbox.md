@@ -71,6 +71,7 @@ createPlanetConversationApi({
 ## ۵. Pagination و Refresh
 
 - Pagination با Cursor سرور
+- اعتبارسنجی ساختار صفحه و سازگاری `has_more` با `next_cursor`
 - دکمه «نمایش بیشتر» در UI Kit
 - ادغام صفحه‌ها بر اساس `conversation.id`
 - جلو رفتن Cursor فقط با پاسخ معتبر
@@ -90,11 +91,12 @@ createPlanetConversationApi({
 - خطای نوشتن Cache، پاسخ موفق سرور را پنهان نمی‌کند.
 - Fallback فقط برای خطای شبکه انجام می‌شود؛ پاسخ 401، 403 و سایر خطاهای HTTP هرگز داده Cache را نمایش نمی‌دهند.
 - Scope داده شامل `operator_id` و `project_id` است و در `owner_id` ذخیره می‌شود.
-- خروج از پیام‌رسان، Cache همان اپراتور/پروژه را پاک می‌کند.
+- خروج از پیام‌رسان، Cache همان اپراتور/پروژه را پاک و نمونه Cache را غیرفعال می‌کند.
+- درخواست‌های در حال اجرا پس از Logout نمی‌توانند Cache را دوباره پر کنند.
 - Migration نسخه ۲، Cache قدیمیِ فقط Project-scoped را حذف می‌کند.
 - Cache فقط داده خواندنی Planet را نگه می‌دارد؛ Outbox ندارد.
 
-در Snapshot کامل و بدون فیلتر، گفتگوهای غایب از پاسخ Planet با Tombstone از Cache حذف می‌شوند. برای Queryهای فیلترشده، غیبت یک رکورد به‌معنای حذف سرور نیست و Cache دست‌نخورده می‌ماند.
+در Snapshot کامل و بدون فیلتر، گفتگوهای غایب از پاسخ Planet با Tombstone از Cache حذف می‌شوند. Upsert قدیمی یا هم‌زمان نمی‌تواند Tombstone را بازنشانی کند؛ فقط نسخه جدیدتر سرور می‌تواند رکورد را بازیابی کند. برای Queryهای فیلترشده، غیبت یک رکورد به‌معنای حذف سرور نیست و Cache دست‌نخورده می‌ماند.
 
 ### PWA
 
@@ -118,11 +120,13 @@ createPlanetConversationApi({
 - حذف رکوردهای Tombstone از نتیجه
 - ارسال Query و Bearer Token به Adapter واقعی Planet
 - Pagination با Cursor و بدون Duplicate
+- رد Pagination ناسازگار پیش از رسیدن به Cache
 - تمایز نتیجه خالی از خطا
 - Fallback به Cache با `owner_id`
 - عدم Fallback روی پاسخ 401، 403 و 503
 - Scope جداگانه اپراتور و پروژه
 - پاک‌سازی Cache با Callback خروج از سرویس
+- جلوگیری از ذخیره دوباره توسط درخواست در حال اجرا پس از Logout
 - حذف Cache قدیمی در Migration نسخه ۲
 - Tombstone گفتگوهای غایب از Snapshot کامل
 - جستجوی آفلاین بدون Wildcard و تطبیق دقیق اپراتور

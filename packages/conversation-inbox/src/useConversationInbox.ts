@@ -94,7 +94,7 @@ export function useConversationInbox({
             let completeSnapshot: Conversation[] | undefined
             if (isUnfilteredSnapshotQuery(pageQuery)) {
               snapshotItems.current = mergeConversations(snapshotItems.current, page.items)
-              if (!page.next_cursor) completeSnapshot = snapshotItems.current
+              if (!page.has_more && !page.next_cursor) completeSnapshot = snapshotItems.current
             }
             await cache.save(ownerId, pageQuery, page, undefined, completeSnapshot)
           } catch {

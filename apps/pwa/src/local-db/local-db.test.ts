@@ -216,6 +216,20 @@ describe('local database and sync core', () => {
 
     expect(await repository.get(scope, 'conv_2')).toBeNull()
     expect(await database.all('SELECT * FROM cached_conversations')).toHaveLength(2)
+
+    await repository.upsert(
+      scope,
+      { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:04:00.000Z' },
+      '2026-11-25T10:06:00.000Z',
+    )
+    expect(await repository.get(scope, 'conv_2')).toBeNull()
+
+    await repository.upsert(
+      scope,
+      { ...conversation, id: 'conv_2', chat_id: '502', updated_at: '2026-11-25T10:06:00.000Z' },
+      '2026-11-25T10:06:00.000Z',
+    )
+    expect(await repository.get(scope, 'conv_2')).not.toBeNull()
   })
 
   it('orders messages chronologically', async () => {

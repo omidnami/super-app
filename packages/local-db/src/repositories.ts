@@ -175,7 +175,10 @@ export class ConversationRepository {
         deleted_at = excluded.deleted_at,
         synced_at = excluded.synced_at,
         cache_status = excluded.cache_status
-      WHERE excluded.updated_at >= cached_conversations.updated_at`,
+      WHERE (cached_conversations.deleted_at IS NULL
+        AND excluded.updated_at >= cached_conversations.updated_at)
+        OR (cached_conversations.deleted_at IS NOT NULL
+        AND excluded.updated_at > cached_conversations.updated_at)`,
       [
         ownerId,
         conversation.project_id,
@@ -216,10 +219,10 @@ export class ConversationRepository {
   ) {
     await this.database.run(
       `UPDATE cached_conversations
-       SET deleted_at = ?, synced_at = ?, cache_status = 'deleted'
+       SET deleted_at = ?, updated_at = MAX(updated_at, ?), synced_at = ?, cache_status = 'deleted'
        WHERE owner_id = ? AND deleted_at IS NULL
          AND server_id NOT IN (SELECT value FROM json_each(?))`,
-      [deletedAt, syncedAt, ownerId, JSON.stringify(retainedIds)],
+      [deletedAt, syncedAt, syncedAt, ownerId, JSON.stringify(retainedIds)],
     )
   }
 

@@ -134,6 +134,54 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isConversation(value: unknown): value is Conversation {
+  if (!isRecord(value) || !isRecord(value.customer)) return false
+  const customer = value.customer
+  const assignee = value.assignee
+  return (
+    typeof value.id === 'string' &&
+    typeof value.project_id === 'string' &&
+    typeof value.source === 'string' &&
+    typeof value.robot_id === 'string' &&
+    typeof value.chat_id === 'string' &&
+    isNullableString(customer.id) &&
+    typeof customer.display_name === 'string' &&
+    typeof customer.initials === 'string' &&
+    (customer.mobile === undefined || typeof customer.mobile === 'string') &&
+    typeof value.support_level === 'string' &&
+    typeof value.status === 'string' &&
+    (assignee === null ||
+      (isRecord(assignee) &&
+        typeof assignee.id === 'string' &&
+        typeof assignee.name === 'string')) &&
+    typeof value.last_message === 'string' &&
+    isNullableString(value.last_message_at) &&
+    typeof value.unread_count === 'number' &&
+    Number.isFinite(value.unread_count) &&
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string' &&
+    isNullableString(value.deleted_at)
+  )
+}
+
+function isConversationPage(value: unknown): value is ConversationPage {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    !value.items.every(isConversation) ||
+    !isNullableString(value.next_cursor) ||
+    typeof value.has_more !== 'boolean'
+  ) {
+    return false
+  }
+  if (value.has_more) return typeof value.next_cursor === 'string' && value.next_cursor.length > 0
+  return value.next_cursor === null
+}
+
 export function createConfiguredConversationApi(baseUrl?: string): ConversationApi {
   const normalizedBaseUrl = baseUrl?.trim()
   return normalizedBaseUrl
@@ -178,12 +226,12 @@ export function createPlanetConversationApi({
   }
 
   return {
-    list(query = {}, context) {
-      return request<{ items: Conversation[]; next_cursor: string | null; has_more: boolean }>(
-        '/api/v1/chat/conversations',
-        query,
-        context,
-      )
+    async list(query = {}, context) {
+      const page = await request<unknown>('/api/v1/chat/conversations', query, context)
+      if (!isConversationPage(page)) {
+        throw new PlanetApiError('پاسخ فهرست گفتگوها معتبر نیست.', 200)
+      }
+      return page
     },
     get(id, context) {
       return request<Conversation | null>(
