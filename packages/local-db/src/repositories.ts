@@ -9,6 +9,7 @@ import type { LocalDatabase, SqlValue } from './database'
 
 interface ConversationRow {
   owner_id: string
+  project_id: string
   server_id: string
   source: Conversation['source']
   robot_id: string
@@ -94,10 +95,14 @@ function parseOffset(cursor?: string) {
   return match ? Number(match[1]) : 0
 }
 
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
+
 function toConversation(row: ConversationRow): Conversation {
   return {
     id: row.server_id,
-    project_id: row.owner_id,
+    project_id: row.project_id,
     source: row.source,
     robot_id: row.robot_id,
     chat_id: row.chat_id,
@@ -149,11 +154,12 @@ export class ConversationRepository {
   async upsert(ownerId: string, conversation: Conversation, syncedAt: string) {
     await this.database.run(
       `INSERT INTO cached_conversations (
-        owner_id, server_id, source, robot_id, chat_id, customer_json,
+        owner_id, project_id, server_id, source, robot_id, chat_id, customer_json,
         support_level, status, assignee_json, last_message, last_message_at,
         unread_count, created_at, updated_at, deleted_at, synced_at, cache_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_id, server_id) DO UPDATE SET
+        project_id = excluded.project_id,
         source = excluded.source,
         robot_id = excluded.robot_id,
         chat_id = excluded.chat_id,
@@ -172,6 +178,7 @@ export class ConversationRepository {
       WHERE excluded.updated_at >= cached_conversations.updated_at`,
       [
         ownerId,
+        conversation.project_id,
         conversation.id,
         conversation.source,
         conversation.robot_id,
@@ -201,6 +208,21 @@ export class ConversationRepository {
     )
   }
 
+  async markMissingDeleted(
+    ownerId: string,
+    retainedIds: string[],
+    deletedAt: string,
+    syncedAt: string,
+  ) {
+    await this.database.run(
+      `UPDATE cached_conversations
+       SET deleted_at = ?, synced_at = ?, cache_status = 'deleted'
+       WHERE owner_id = ? AND deleted_at IS NULL
+         AND server_id NOT IN (SELECT value FROM json_each(?))`,
+      [deletedAt, syncedAt, ownerId, JSON.stringify(retainedIds)],
+    )
+  }
+
   async get(ownerId: string, id: string) {
     const row = await this.database.get<ConversationRow>(
       'SELECT * FROM cached_conversations WHERE owner_id = ? AND server_id = ? AND deleted_at IS NULL',
@@ -225,9 +247,11 @@ export class ConversationRepository {
     const conditions = ['owner_id = ?', 'deleted_at IS NULL']
     const params: SqlValue[] = [ownerId]
     if (filters.search) {
-      conditions.push('(last_message LIKE ? OR customer_json LIKE ? OR chat_id LIKE ?)')
-      const search = `%${filters.search}%`
-      params.push(search, search, search)
+      conditions.push(
+        "(last_message LIKE ? ESCAPE '\\' OR json_extract(customer_json, '$.display_name') LIKE ? ESCAPE '\\' OR chat_id LIKE ? ESCAPE '\\' OR json_extract(assignee_json, '$.name') LIKE ? ESCAPE '\\')",
+      )
+      const search = `%${escapeLike(filters.search)}%`
+      params.push(search, search, search, search)
     }
     if (filters.source) {
       conditions.push('source = ?')
@@ -242,8 +266,8 @@ export class ConversationRepository {
       params.push(filters.status)
     }
     if (filters.assigneeId) {
-      conditions.push('assignee_json LIKE ?')
-      params.push(`%${filters.assigneeId}%`)
+      conditions.push("json_extract(assignee_json, '$.id') = ?")
+      params.push(filters.assigneeId)
     }
     if (filters.unreadOnly) conditions.push('unread_count > 0')
 

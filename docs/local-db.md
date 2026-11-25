@@ -45,7 +45,7 @@ Adapterهای جایگزین مانند SQLCipher باید همان `DatabaseFac
 - `crm_interactions`
 - `schema_migrations`
 
-همه داده‌های سروری با `owner_id` ایزوله می‌شوند.
+همه داده‌های سروری با `owner_id` ایزوله می‌شوند. Cache گفتگوها از Scope ترکیبی اپراتور و پروژه استفاده می‌کند و `project_id` واقعی در ستون جداگانه نگهداری می‌شود. Migration نسخه ۲ داده Cache قدیمیِ بدون Scope اپراتور را حذف می‌کند.
 
 ---
 

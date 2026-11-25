@@ -3,10 +3,21 @@ import type {
   Conversation,
   ConversationListQuery,
   ConversationPage,
+  OperatorSummary,
 } from '@superapp/chat-contracts'
+import { PlanetApiError } from '@superapp/api-client'
 import type { ConversationInboxOptions, InboxDataSource, InboxFilters } from './types'
 
 const DEFAULT_ERROR = 'دریافت گفتگوها ناموفق بود. دوباره تلاش کنید.'
+
+function errorMessage(error: unknown) {
+  if (error instanceof PlanetApiError) {
+    if (error.status === 401) return 'نشست پیام‌رسان منقضی شده است. دوباره متصل شوید.'
+    if (error.status === 403) return 'دسترسی به این گفتگوها مجاز نیست.'
+    return error.message
+  }
+  return DEFAULT_ERROR
+}
 
 function mergeConversations(current: Conversation[], incoming: Conversation[]) {
   const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
@@ -19,6 +30,25 @@ function mergeConversations(current: Conversation[], incoming: Conversation[]) {
   return Array.from(byId.values())
 }
 
+function mergeOperators(current: OperatorSummary[], conversations: Conversation[]) {
+  const byId = new Map(current.map((operator) => [operator.id, operator]))
+  for (const conversation of conversations) {
+    if (conversation.assignee) byId.set(conversation.assignee.id, conversation.assignee)
+  }
+  return Array.from(byId.values())
+}
+
+function isUnfilteredSnapshotQuery(query: ConversationListQuery) {
+  return !(
+    query.search ||
+    query.source ||
+    query.support_level ||
+    query.status ||
+    query.assignee_operator_id ||
+    query.unread_only
+  )
+}
+
 export function useConversationInbox({
   api,
   ownerId,
@@ -28,6 +58,7 @@ export function useConversationInbox({
   searchDebounceMs = 250,
 }: ConversationInboxOptions) {
   const [items, setItems] = useState<Conversation[]>([])
+  const [operators, setOperators] = useState<OperatorSummary[]>([])
   const [filters, setFiltersState] = useState<InboxFilters>({})
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [dataSource, setDataSource] = useState<InboxDataSource | null>(null)
@@ -39,6 +70,7 @@ export function useConversationInbox({
   const generation = useRef(0)
   const loadingMore = useRef(false)
   const abortController = useRef<AbortController | null>(null)
+  const snapshotItems = useRef<Conversation[]>([])
 
   const query = useMemo<ConversationListQuery>(
     () => ({
@@ -59,14 +91,21 @@ export function useConversationInbox({
         if (signal?.aborted) throw new Error('Request aborted')
         if (cache) {
           try {
-            await cache.save(ownerId, pageQuery, page)
+            let completeSnapshot: Conversation[] | undefined
+            if (isUnfilteredSnapshotQuery(pageQuery)) {
+              snapshotItems.current = mergeConversations(snapshotItems.current, page.items)
+              if (!page.next_cursor) completeSnapshot = snapshotItems.current
+            }
+            await cache.save(ownerId, pageQuery, page, undefined, completeSnapshot)
           } catch {
             // A cache write failure must not hide a successful server response.
           }
         }
         return { page, source: 'remote' }
       } catch (requestError) {
-        if (signal?.aborted || !cache) throw requestError
+        if (signal?.aborted || !cache || requestError instanceof PlanetApiError) {
+          throw requestError
+        }
         const page = await cache.list(ownerId, pageQuery)
         return { page, source: 'cache' }
       }
@@ -80,6 +119,7 @@ export function useConversationInbox({
       const controller = new AbortController()
       abortController.current = controller
       const requestGeneration = ++generation.current
+      if (isUnfilteredSnapshotQuery(query)) snapshotItems.current = []
       setStatus('loading')
       setIsRefreshing(refreshing)
       setError(null)
@@ -88,17 +128,19 @@ export function useConversationInbox({
         const { page, source } = await fetchPage(query)
         if (requestGeneration !== generation.current) return
         setItems(page.items)
+        setOperators((current) => mergeOperators(current, page.items))
         setNextCursor(page.next_cursor)
         setHasMore(Boolean(page.has_more && page.next_cursor))
         setDataSource(source)
         setStatus('ready')
-      } catch {
+      } catch (requestError) {
         if (requestGeneration !== generation.current) return
         setItems([])
+        setOperators([])
         setNextCursor(null)
         setHasMore(false)
         setDataSource(null)
-        setError(DEFAULT_ERROR)
+        setError(errorMessage(requestError))
         setStatus('error')
       } finally {
         if (requestGeneration === generation.current) setIsRefreshing(false)
@@ -140,12 +182,13 @@ export function useConversationInbox({
       const { page, source } = await fetchPage({ ...query, cursor: nextCursor })
       if (requestGeneration !== generation.current) return
       setItems((current) => mergeConversations(current, page.items))
+      setOperators((current) => mergeOperators(current, page.items))
       setNextCursor(page.next_cursor)
       setHasMore(Boolean(page.has_more && page.next_cursor))
       setDataSource(source)
       setStatus('ready')
-    } catch {
-      if (requestGeneration === generation.current) setError(DEFAULT_ERROR)
+    } catch (requestError) {
+      if (requestGeneration === generation.current) setError(errorMessage(requestError))
     } finally {
       loadingMore.current = false
       if (requestGeneration === generation.current) setIsLoadingMore(false)
@@ -160,6 +203,7 @@ export function useConversationInbox({
 
   return {
     items,
+    operators,
     filters,
     status,
     dataSource,

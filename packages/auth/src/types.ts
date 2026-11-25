@@ -49,5 +49,6 @@ export interface ServiceSessionProviderProps {
   service: ServiceId
   storage: import('@superapp/storage').StorageAdapter
   adapter: AuthAdapter
+  onLogout?: (session: ServiceSession) => void | Promise<void>
   children: ReactNode
 }

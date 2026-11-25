@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { createMockConversationApi } from '@superapp/api-client'
 import type { Conversation } from '@superapp/chat-contracts'
-import { INBOX_PAGE_SIZE, useConversationInbox } from '@superapp/conversation-inbox'
+import {
+  createConversationCacheScope,
+  INBOX_PAGE_SIZE,
+  useConversationInbox,
+} from '@superapp/conversation-inbox'
 import {
   createMockHubTransport,
   createMockTicketAdapter,
@@ -19,10 +22,10 @@ import {
   StatusPill,
   Tabs,
 } from '@superapp/ui/web'
+import { conversationApi } from '../conversations/api'
 
 const ticketAdapter = createMockTicketAdapter()
 const mockHub = createMockHubTransport()
-const conversationApi = createMockConversationApi()
 
 const stateLabels = {
   disconnected: 'قطع',
@@ -113,7 +116,9 @@ function MessagingInbox({
   const { session } = useServiceSession()
   const inbox = useConversationInbox({
     api: conversationApi,
-    ownerId: session?.context.projectId || '',
+    ownerId: session
+      ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
+      : '',
     accessToken: session?.accessToken,
     pageSize: INBOX_PAGE_SIZE,
   })

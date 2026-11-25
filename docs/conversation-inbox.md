@@ -46,7 +46,12 @@ createPlanetConversationApi({
 - خطای تایپ‌شده `PlanetApiError`
 - پشتیبانی از `AbortSignal`
 
-در MVP اپ‌ها از `createMockConversationApi` استفاده می‌کنند تا بدون Backend قابل‌اجرا باشند. جایگزینی Adapter در نقطه اتصال اپ انجام می‌شود و UI یا Hook تغییر نمی‌کند.
+آپ‌ها با `createConfiguredConversationApi` Adapter را انتخاب می‌کنند:
+
+- موبایل: `EXPO_PUBLIC_PLANET_API_URL`
+- PWA: `VITE_PLANET_API_URL`
+
+اگر URL تنظیم نشده باشد، Mock اجرا می‌شود تا پروژه بدون Backend قابل‌اجرا باشد. با تنظیم URL، همان اپ‌ها مستقیماً از Adapter واقعی Planet استفاده می‌کنند و UI یا Hook تغییر نمی‌کند.
 
 ---
 
@@ -59,7 +64,7 @@ createPlanetConversationApi({
 - اپراتور
 - فقط خوانده‌نشده
 
-جستجو با Debounce کوتاه اجرا می‌شود. تغییر فیلترها درخواست قبلی را Abort و نتیجه قدیمی را نادیده می‌گیرد.
+جستجو با Debounce کوتاه اجرا می‌شود. تغییر فیلترها درخواست قبلی را Abort و نتیجه قدیمی را نادیده می‌گیرد. گزینه‌های اپراتور از گفتگوهای دریافت‌شده حفظ می‌شوند تا با تغییر جستجو یا فیلتر از منوی انتخاب ناپدید نشوند.
 
 ---
 
@@ -83,7 +88,13 @@ createPlanetConversationApi({
 - در صورت خطای شبکه، همان Query از `ConversationRepository` خوانده می‌شود.
 - داده Cache با برچسب «آفلاین» نمایش داده می‌شود.
 - خطای نوشتن Cache، پاسخ موفق سرور را پنهان نمی‌کند.
+- Fallback فقط برای خطای شبکه انجام می‌شود؛ پاسخ 401، 403 و سایر خطاهای HTTP هرگز داده Cache را نمایش نمی‌دهند.
+- Scope داده شامل `operator_id` و `project_id` است و در `owner_id` ذخیره می‌شود.
+- خروج از پیام‌رسان، Cache همان اپراتور/پروژه را پاک می‌کند.
+- Migration نسخه ۲، Cache قدیمیِ فقط Project-scoped را حذف می‌کند.
 - Cache فقط داده خواندنی Planet را نگه می‌دارد؛ Outbox ندارد.
+
+در Snapshot کامل و بدون فیلتر، گفتگوهای غایب از پاسخ Planet با Tombstone از Cache حذف می‌شوند. برای Queryهای فیلترشده، غیبت یک رکورد به‌معنای حذف سرور نیست و Cache دست‌نخورده می‌ماند.
 
 ### PWA
 
@@ -109,6 +120,12 @@ createPlanetConversationApi({
 - Pagination با Cursor و بدون Duplicate
 - تمایز نتیجه خالی از خطا
 - Fallback به Cache با `owner_id`
+- عدم Fallback روی پاسخ 401، 403 و 503
+- Scope جداگانه اپراتور و پروژه
+- پاک‌سازی Cache با Callback خروج از سرویس
+- حذف Cache قدیمی در Migration نسخه ۲
+- Tombstone گفتگوهای غایب از Snapshot کامل
+- جستجوی آفلاین بدون Wildcard و تطبیق دقیق اپراتور
 - حفظ پاسخ سرور هنگام خطای Cache
 - خطای شبکه بدون Cache
 - فیلتر و جستجو در UI موبایل و PWA

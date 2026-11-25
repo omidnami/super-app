@@ -49,6 +49,20 @@ npm run dev:pwa
 
 PWA به‌صورت پیش‌فرض روی پورت `5173` اجرا می‌شود.
 
+### اتصال به Planet
+
+برای استفاده از API واقعی گفتگوها، URL پایه Planet را در Environment اپ تنظیم کنید:
+
+```bash
+# موبایل / Expo
+EXPO_PUBLIC_PLANET_API_URL=https://planet.example.com
+
+# PWA / Vite
+VITE_PLANET_API_URL=https://planet.example.com
+```
+
+بدون این متغیر، اپ‌ها برای MVP از Mock Conversation API استفاده می‌کنند.
+
 ---
 
 ## ۴. بررسی کیفیت

@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import type { Conversation, ConversationStatus, SupportLevel } from '@superapp/chat-contracts'
 import {
   CHAT_SOURCE_LABELS,
@@ -105,25 +104,17 @@ export function ConversationList({ inbox, onOpenConversation }: ConversationList
   const { tokens } = useTheme()
   const activeFilters = countActiveFilters(inbox.filters)
   const hasFilters = activeFilters > 0 || Boolean(inbox.filters.search)
-  const operators = useMemo(() => {
-    const byId = new Map<string, { value: string; label: string }>()
-    for (const conversation of inbox.items) {
-      if (conversation.assignee) {
-        byId.set(conversation.assignee.id, {
-          value: conversation.assignee.id,
-          label: conversation.assignee.name,
-        })
-      }
-    }
-    return Array.from(byId.values())
-  }, [inbox.items])
+  const operators = inbox.operators.map((operator) => ({
+    value: operator.id,
+    label: operator.name,
+  }))
 
   const emptyState = (
     <EmptyState
-      title="گفتگویی پیدا نشد"
+      title={inbox.dataSource === 'cache' ? 'داده آفلاین موجود نیست' : 'گفتگویی پیدا نشد'}
       description={
         inbox.dataSource === 'cache'
-          ? 'در داده‌های ذخیره‌شده گفتگویی با این فیلترها وجود ندارد.'
+          ? 'داده آفلاین متناسب با این فیلترها موجود نیست.'
           : 'فیلترها یا عبارت جستجو را تغییر دهید.'
       }
       actionLabel={hasFilters ? 'پاک کردن فیلترها' : 'بازخوانی'}
@@ -220,7 +211,7 @@ export function ConversationList({ inbox, onOpenConversation }: ConversationList
 
       <OfflineBanner visible={inbox.dataSource === 'cache'} onRetry={() => void inbox.refresh()} />
 
-      {inbox.status === 'loading' && inbox.items.length === 0 ? (
+      {inbox.status === 'loading' && !inbox.isRefreshing ? (
         <LoadingList />
       ) : inbox.status === 'error' && inbox.items.length === 0 ? (
         <ErrorState

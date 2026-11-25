@@ -92,6 +92,7 @@ expire (اختیاری)
 - Provider هر سرویس با `key` مستقل در App Shellmount می‌شود.
 - CRM خارج از Provider سرویس قرار می‌گیرد.
 - Boundary تا پایان Hydration، محتوای محافظت‌شده را نمایش نمی‌دهد.
+- Callback اختیاری `onLogout` پس از حذف Session اجرا می‌شود تا داده‌های متعلق به همان سرویس و اپراتور نیز پاک شوند.
 
 ---
 
@@ -102,4 +103,5 @@ expire (اختیاری)
 - بازیابی Session پس از Remount
 - انقضای Session و نمایش Fallback
 - خطای 401 برای اطلاعات ورودی نامعتبر
+- اجرای `onLogout` با Session صحیح پیش از پاک‌شدن کامل State
 - دسترسی CRM بدون Provider

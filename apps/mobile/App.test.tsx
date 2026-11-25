@@ -7,6 +7,7 @@ const mockStorage = new Map<string, string>()
 
 jest.mock('./src/conversations/cache', () => ({
   createMobileConversationCache: () => undefined,
+  clearConversationCacheForSession: async () => undefined,
 }))
 
 jest.mock('@react-native-async-storage/async-storage', () => ({

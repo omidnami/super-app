@@ -25,6 +25,7 @@ export function ServiceSessionProvider({
   service,
   storage,
   adapter,
+  onLogout,
   children,
 }: ServiceSessionProviderProps) {
   const [session, setSession] = useState<ServiceSession | null>(null)
@@ -85,13 +86,18 @@ export function ServiceSessionProvider({
   }
 
   const disconnect = async () => {
+    const previousSession = session
     try {
-      if (session) await adapter.logout(service, session)
+      if (previousSession) await adapter.logout(service, previousSession)
     } finally {
       await storage.removeItem(authStorageKey(service))
-      setSession(null)
-      setError(null)
-      setStatus('disconnected')
+      try {
+        if (previousSession) await onLogout?.(previousSession)
+      } finally {
+        setSession(null)
+        setError(null)
+        setStatus('disconnected')
+      }
     }
   }
 
@@ -139,7 +145,7 @@ export function ServiceSessionProvider({
     }),
     // Methods intentionally close over the latest session and adapter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [error, isHydrated, service, session, status],
+    [error, isHydrated, onLogout, service, session, status],
   )
 
   return <ServiceSessionContext.Provider value={value}>{children}</ServiceSessionContext.Provider>

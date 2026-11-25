@@ -6,13 +6,19 @@ import type {
   ConversationPage,
 } from '@superapp/chat-contracts'
 import {
+  createConfiguredConversationApi,
   createMockConversationApi,
   createPlanetConversationApi,
   filterConversations,
   PlanetApiError,
   type ConversationApi,
 } from '@superapp/api-client'
-import { useConversationInbox, type ConversationCache } from '@superapp/conversation-inbox'
+import {
+  createConversationCacheScope,
+  parseConversationCacheScope,
+  useConversationInbox,
+  type ConversationCache,
+} from '@superapp/conversation-inbox'
 
 function conversation(id: string, overrides: Partial<Conversation> = {}): Conversation {
   return {
@@ -59,6 +65,16 @@ function createCache(): ConversationCache {
 }
 
 describe('conversation inbox data', () => {
+  it('scopes cached data by both operator and project', () => {
+    const first = createConversationCacheScope('op_1', 'prj_12')
+    const secondOperator = createConversationCacheScope('op_2', 'prj_12')
+    const secondProject = createConversationCacheScope('op_1', 'prj_99')
+
+    expect(parseConversationCacheScope(first)).toEqual({ operatorId: 'op_1', projectId: 'prj_12' })
+    expect(first).not.toBe(secondOperator)
+    expect(first).not.toBe(secondProject)
+  })
+
   it('applies every inbox filter and excludes deleted conversations', async () => {
     const items = [
       conversation('match'),
@@ -133,10 +149,12 @@ describe('conversation inbox data', () => {
       query?.cursor ? page([first, second]) : page([first], 'cursor_1'),
     )
     const api = apiWithList(list)
+    const cache = createCache()
     const { result } = renderHook(() =>
       useConversationInbox({
         api,
         ownerId: 'prj_12',
+        cache,
         pageSize: 1,
         searchDebounceMs: 0,
       }),
@@ -153,6 +171,13 @@ describe('conversation inbox data', () => {
     expect(list).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'cursor_1', limit: 1 }),
       expect.any(Object),
+    )
+    expect(cache.save).toHaveBeenLastCalledWith(
+      'prj_12',
+      expect.objectContaining({ cursor: 'cursor_1' }),
+      page([first, second]),
+      undefined,
+      [first, second],
     )
   })
 
@@ -191,6 +216,8 @@ describe('conversation inbox data', () => {
       'prj_12',
       expect.objectContaining({ status: 'closed' }),
       page([current]),
+      undefined,
+      undefined,
     )
   })
 
@@ -250,6 +277,32 @@ describe('conversation inbox data', () => {
     expect(result.current.items.map((item) => item.id)).toEqual(['remote'])
   })
 
+  it.each([401, 403, 503])(
+    'does not expose cached business data after a %i server response',
+    async (status) => {
+      const cache = createCache()
+      vi.mocked(cache.list).mockResolvedValue(page([conversation('cached')]))
+      const api = apiWithList(async () => {
+        throw new PlanetApiError('Server error', status)
+      })
+      const { result } = renderHook(() =>
+        useConversationInbox({
+          api,
+          ownerId: 'prj_12',
+          cache,
+          searchDebounceMs: 0,
+        }),
+      )
+
+      await waitFor(() => expect(result.current.status).toBe('error'))
+      expect(result.current.items).toEqual([])
+      expect(result.current.dataSource).toBeNull()
+      expect(cache.list).not.toHaveBeenCalled()
+      if (status === 401) expect(result.current.error).toContain('نشست پیام‌رسان')
+      if (status === 403) expect(result.current.error).toContain('دسترسی')
+    },
+  )
+
   it('surfaces a retryable error when neither network nor cache is available', async () => {
     const api = apiWithList(async () => {
       throw new Error('offline')
@@ -269,6 +322,26 @@ describe('conversation inbox data', () => {
 })
 
 describe('Planet conversation API', () => {
+  it('selects the real adapter when a Planet base URL is configured', async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ status: true, data: page([]) }), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const api = createConfiguredConversationApi('https://planet.superapp.local')
+      await api.list({ limit: 10 })
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: '/api/v1/chat/conversations' }),
+        expect.any(Object),
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    const mockPage = await createConfiguredConversationApi().list({ limit: 1 })
+    expect(mockPage.items[0]?.id).toBe('conv_1001')
+  })
+
   it('builds the documented query and sends the messaging bearer token', async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () =>

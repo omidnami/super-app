@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 
@@ -26,6 +26,9 @@ describe('App shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'فیلتر همه' }))
     fireEvent.change(screen.getByLabelText('جستجو'), { target: { value: 'موردی وجود ندارد' } })
     expect(await screen.findByText('گفتگویی پیدا نشد')).toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText('اپراتور')).getByRole('option', { name: 'سارا رضایی' }),
+    ).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('جستجو'), { target: { value: '' } })
     fireEvent.click(await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }))

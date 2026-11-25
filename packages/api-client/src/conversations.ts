@@ -134,6 +134,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
+export function createConfiguredConversationApi(baseUrl?: string): ConversationApi {
+  const normalizedBaseUrl = baseUrl?.trim()
+  return normalizedBaseUrl
+    ? createPlanetConversationApi({ baseUrl: normalizedBaseUrl })
+    : createMockConversationApi()
+}
+
 export function createPlanetConversationApi({
   baseUrl,
   getAccessToken,
@@ -158,7 +165,12 @@ export function createPlanetConversationApi({
     if (!response.ok) {
       throw new PlanetApiError('دریافت داده از Planet ناموفق بود.', response.status)
     }
-    const payload: unknown = await response.json()
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch {
+      throw new PlanetApiError('پاسخ Planet معتبر نیست.', response.status)
+    }
     if (!isRecord(payload) || payload.status !== true || !('data' in payload)) {
       throw new PlanetApiError('پاسخ Planet معتبر نیست.', response.status)
     }

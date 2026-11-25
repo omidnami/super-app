@@ -7,6 +7,7 @@ import { ServiceAuthBoundary, ServiceSessionProvider } from '@superapp/ui'
 import { Card, MiniAppShell, MobileNavigation, Tabs } from '@superapp/ui/native'
 import { mobileAuthStorage } from './src/auth/storage'
 import { AuthDemo } from './src/components/AuthDemo'
+import { clearConversationCacheForSession } from './src/conversations/cache'
 import { MessagingHub } from './src/components/HubDemo'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
@@ -83,6 +84,7 @@ function AppContent() {
             service={activeModule}
             storage={mobileAuthStorage}
             adapter={authAdapter}
+            onLogout={activeModule === 'messaging' ? clearConversationCacheForSession : undefined}
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
               {activeModule === 'messaging' ? (

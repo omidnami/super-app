@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMockAuthAdapter } from '@superapp/auth'
 import type { StorageAdapter } from '@superapp/storage'
 import { ServiceAuthBoundary, ServiceSessionProvider, useServiceSession } from '@superapp/ui'
@@ -83,6 +83,36 @@ describe('independent service auth', () => {
       expect(screen.getByTestId('messaging-status')).toHaveTextContent('disconnected'),
     )
     expect(screen.getByTestId('account-status')).toHaveTextContent('connected')
+  })
+
+  it('clears service-owned data with the session on logout', async () => {
+    const adapter = createMockAuthAdapter()
+    const { storage, values } = createMemoryStorage()
+    const onLogout = vi.fn(async () => undefined)
+    render(
+      <ServiceSessionProvider
+        service="messaging"
+        storage={storage}
+        adapter={adapter}
+        onLogout={onLogout}
+      >
+        <AuthProbe service="messaging" />
+      </ServiceSessionProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect-messaging' }))
+    await waitFor(() =>
+      expect(screen.getByTestId('messaging-status')).toHaveTextContent('connected'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'disconnect-messaging' }))
+    await waitFor(() => expect(onLogout).toHaveBeenCalledTimes(1))
+    expect(onLogout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        service: 'messaging',
+        context: expect.objectContaining({ operatorId: 'op_42', projectId: 'prj_12' }),
+      }),
+    )
+    expect(values.has('superapp.auth.messaging.v1')).toBe(false)
   })
 
   it('persists each service session under a separate key', async () => {

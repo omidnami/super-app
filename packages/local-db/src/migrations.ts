@@ -216,4 +216,15 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'scope_conversation_cache_by_operator',
+    sql: `
+      ALTER TABLE cached_conversations
+        ADD COLUMN project_id TEXT NOT NULL DEFAULT '';
+
+      DELETE FROM cached_messages;
+      DELETE FROM cached_conversations;
+    `,
+  },
 ]

@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
-import { createMockConversationApi } from '@superapp/api-client'
 import type { Conversation } from '@superapp/chat-contracts'
-import { INBOX_PAGE_SIZE, useConversationInbox } from '@superapp/conversation-inbox'
+import {
+  createConversationCacheScope,
+  INBOX_PAGE_SIZE,
+  useConversationInbox,
+} from '@superapp/conversation-inbox'
 import {
   createMockHubTransport,
   createMockTicketAdapter,
@@ -20,12 +23,11 @@ import {
   StatusPill,
   Tabs,
 } from '@superapp/ui/native'
+import { conversationApi } from '../conversations/api'
 import { createMobileConversationCache } from '../conversations/cache'
 
 const ticketAdapter = createMockTicketAdapter()
 const mockHub = createMockHubTransport()
-const conversationApi = createMockConversationApi()
-const conversationCache = createMobileConversationCache()
 
 const stateLabels = {
   disconnected: 'قطع',
@@ -130,11 +132,15 @@ function MessagingInbox({
   onOpenConversation: (conversation: Conversation) => void
 }) {
   const { session } = useServiceSession()
+  const scope = session
+    ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
+    : ''
+  const cache = useMemo(() => (scope ? createMobileConversationCache(scope) : undefined), [scope])
   const inbox = useConversationInbox({
     api: conversationApi,
-    ownerId: session?.context.projectId || '',
+    ownerId: scope,
     accessToken: session?.accessToken,
-    cache: conversationCache,
+    cache,
     pageSize: INBOX_PAGE_SIZE,
   })
 
