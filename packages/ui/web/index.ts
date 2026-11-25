@@ -1,5 +1,6 @@
 import './styles.css'
 
+export * from './chat'
 export * from './conversations'
 export * from './primitives'
 export * from './feedback'

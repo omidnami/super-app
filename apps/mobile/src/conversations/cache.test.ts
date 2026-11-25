@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import type { Conversation, ConversationPage } from '@superapp/chat-contracts'
+import type {
+  CanonicalMessage,
+  Conversation,
+  ConversationPage,
+  Paginated,
+} from '@superapp/chat-contracts'
 import { createConversationCacheScope } from '@superapp/conversation-inbox'
 import type { LocalDatabase } from '@superapp/local-db'
 
 const mockList = jest.fn<(...args: unknown[]) => Promise<ConversationPage>>()
 const mockUpsert = jest.fn<(...args: unknown[]) => Promise<void>>()
 const mockMarkMissingDeleted = jest.fn<(...args: unknown[]) => Promise<void>>()
+const mockMessageList = jest.fn<(...args: unknown[]) => Promise<Paginated<CanonicalMessage>>>()
+const mockMessageUpsert = jest.fn<(...args: unknown[]) => Promise<void>>()
 const mockRun = jest.fn<(...args: unknown[]) => Promise<void>>()
 
 const mockDatabase = {
@@ -34,6 +41,15 @@ jest.mock('@superapp/local-db', () => ({
       return mockMarkMissingDeleted(...args)
     }
   },
+  MessageRepository: class {
+    list(...args: unknown[]) {
+      return mockMessageList(...args)
+    }
+
+    upsert(...args: unknown[]) {
+      return mockMessageUpsert(...args)
+    }
+  },
 }))
 
 const conversation: Conversation = {
@@ -54,6 +70,21 @@ const conversation: Conversation = {
   deleted_at: null,
 }
 
+const message: CanonicalMessage = {
+  id: 'msg_1',
+  conversation_id: 'conv_1',
+  client_mutation_id: 'cm_1',
+  sender: 'operator',
+  sender_id: 'op_1',
+  text: 'سلام',
+  attachment: null,
+  sent_at: '2026-11-25T10:00:00.000Z',
+  created_at: '2026-11-25T10:00:00.000Z',
+  updated_at: '2026-11-25T10:00:00.000Z',
+  deleted_at: null,
+  delivery_status: 'sent',
+}
+
 function page(items: Conversation[]): ConversationPage {
   return { items, next_cursor: null, has_more: false }
 }
@@ -64,6 +95,8 @@ beforeEach(() => {
   mockList.mockResolvedValue(page([]))
   mockUpsert.mockResolvedValue(undefined)
   mockMarkMissingDeleted.mockResolvedValue(undefined)
+  mockMessageList.mockResolvedValue({ items: [], next_cursor: null, has_more: false })
+  mockMessageUpsert.mockResolvedValue(undefined)
   mockRun.mockResolvedValue(undefined)
   mockOpenDatabase = async () => mockDatabase
 })
@@ -77,8 +110,10 @@ describe('mobile conversation cache lifetime', () => {
 
     await cache.clear?.(scope)
     await cache.save(scope, {}, page([conversation]))
+    await cache.saveMessages(scope, 'conv_1', [message])
 
     expect(mockUpsert).not.toHaveBeenCalled()
+    expect(mockMessageUpsert).not.toHaveBeenCalled()
   })
 
   it('does not let an in-flight save repopulate a cleared scope', async () => {

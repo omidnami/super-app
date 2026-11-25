@@ -18,8 +18,8 @@ import {
   Badge,
   Button,
   Card,
+  ChatScreen,
   ConversationList,
-  ConversationRoute,
   StatusPill,
   Tabs,
 } from '@superapp/ui/native'
@@ -128,14 +128,15 @@ function HubDemo() {
 
 function MessagingInbox({
   onOpenConversation,
+  cache,
 }: {
   onOpenConversation: (conversation: Conversation) => void
+  cache: ReturnType<typeof createMobileConversationCache> | undefined
 }) {
   const { session } = useServiceSession()
   const scope = session
     ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
     : ''
-  const cache = useMemo(() => (scope ? createMobileConversationCache(scope) : undefined), [scope])
   const inbox = useConversationInbox({
     api: conversationApi,
     ownerId: scope,
@@ -152,6 +153,10 @@ export function MessagingHub() {
   const { session } = useServiceSession()
   const [activeTab, setActiveTab] = useState('inbox')
   const [conversation, setConversation] = useState<Conversation | null>(null)
+  const scope = session
+    ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
+    : ''
+  const cache = useMemo(() => (scope ? createMobileConversationCache(scope) : undefined), [scope])
   if (!session) return null
 
   return (
@@ -173,9 +178,17 @@ export function MessagingHub() {
           }}
         />
         {conversation ? (
-          <ConversationRoute conversation={conversation} onBack={() => setConversation(null)} />
+          <ChatScreen
+            conversation={conversation}
+            api={conversationApi}
+            ownerId={scope}
+            operatorId={session.context.operatorId}
+            accessToken={session.accessToken}
+            cache={cache}
+            onBack={() => setConversation(null)}
+          />
         ) : activeTab === 'inbox' ? (
-          <MessagingInbox onOpenConversation={setConversation} />
+          <MessagingInbox onOpenConversation={setConversation} cache={cache} />
         ) : (
           <HubDemo />
         )}

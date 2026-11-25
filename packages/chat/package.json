@@ -1,0 +1,19 @@
+{
+  "name": "@superapp/chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@superapp/api-client": "0.1.0",
+    "@superapp/chat-contracts": "0.1.0",
+    "@superapp/hub-client": "0.1.0",
+    "react": "19.3.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings=0"
+  }
+}

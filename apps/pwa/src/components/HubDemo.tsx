@@ -17,8 +17,8 @@ import {
   Badge,
   Button,
   Card,
+  ChatScreen,
   ConversationList,
-  ConversationRoute,
   StatusPill,
   Tabs,
 } from '@superapp/ui/web'
@@ -131,6 +131,16 @@ export function MessagingHub() {
   const { session } = useServiceSession()
   const [activeTab, setActiveTab] = useState('inbox')
   const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [])
   if (!session) return null
 
   return (
@@ -152,7 +162,18 @@ export function MessagingHub() {
           }}
         />
         {conversation ? (
-          <ConversationRoute conversation={conversation} onBack={() => setConversation(null)} />
+          <ChatScreen
+            conversation={conversation}
+            api={conversationApi}
+            ownerId={createConversationCacheScope(
+              session.context.operatorId,
+              session.context.projectId,
+            )}
+            operatorId={session.context.operatorId}
+            accessToken={session.accessToken}
+            isOnline={isOnline}
+            onBack={() => setConversation(null)}
+          />
         ) : activeTab === 'inbox' ? (
           <MessagingInbox onOpenConversation={setConversation} />
         ) : (

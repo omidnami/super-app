@@ -33,7 +33,17 @@ describe('App shell', () => {
     fireEvent.change(screen.getByLabelText('جستجو'), { target: { value: '' } })
     fireEvent.click(await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }))
     expect(await screen.findByRole('region', { name: 'صفحه گفتگو' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'بازگشت به گفتگوها' }))
+    fireEvent.change(screen.getByLabelText('متن پیام'), {
+      target: { value: 'پاسخ آزمایشی اپراتور' },
+    })
+    await waitFor(() =>
+      expect(screen.getByLabelText('متن پیام')).toHaveValue('پاسخ آزمایشی اپراتور'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'ارسال' }))
+    await waitFor(() =>
+      expect(screen.getByLabelText('شما: پاسخ آزمایشی اپراتور')).toHaveTextContent('ارسال‌شده'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'بازگشت' }))
     expect(
       await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }),
     ).toBeInTheDocument()

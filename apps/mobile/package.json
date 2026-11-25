@@ -6,6 +6,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@superapp/auth": "0.1.0",
     "@superapp/api-client": "0.1.0",
+    "@superapp/chat": "0.1.0",
     "@superapp/chat-contracts": "0.1.0",
     "@superapp/conversation-inbox": "0.1.0",
     "@superapp/design-tokens": "0.1.0",

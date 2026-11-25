@@ -657,6 +657,7 @@ apps/
 
 packages/
   auth/
+  chat/
   conversation-inbox/
   hub-client/
   local-db/

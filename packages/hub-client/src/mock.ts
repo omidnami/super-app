@@ -1,6 +1,6 @@
 import type { ServiceSession } from '@superapp/auth'
-import type { ConnectionTicket, HubMessage } from '@superapp/chat-contracts'
-import type { HubAck, HubEvent, HubTransport, TicketAdapter } from './types'
+import type { CanonicalMessage, ConnectionTicket, HubMessage } from '@superapp/chat-contracts'
+import type { HubAck, HubEvent, HubSendContext, HubTransport, TicketAdapter } from './types'
 
 export class TicketAdapterError extends Error {
   readonly status: number
@@ -40,6 +40,8 @@ export function createMockHubTransport() {
   const listeners = new Set<(event: HubEvent) => void>()
   let connected = false
   let failNext = false
+  let messageCounter = 0
+  const canonicalByMutationId = new Map<string, CanonicalMessage>()
 
   const emit = (event: HubEvent) => listeners.forEach((listener) => listener(event))
   const transport: HubTransport = {
@@ -62,10 +64,34 @@ export function createMockHubTransport() {
       connected = false
       emit({ type: 'disconnect', reason: 'io client disconnect' })
     },
-    async send(message: HubMessage): Promise<HubAck> {
+    async send(message: HubMessage, context?: HubSendContext): Promise<HubAck> {
       if (!connected) return { status: false, code: 'DISCONNECTED', message: 'Hub is disconnected' }
       emit({ type: 'chat', message })
-      return { status: true }
+      if (!context) return { status: true }
+
+      let canonical = canonicalByMutationId.get(context.clientMutationId)
+      if (!canonical) {
+        const sentAt =
+          context.sentAt && !Number.isNaN(Date.parse(context.sentAt))
+            ? context.sentAt
+            : new Date().toISOString()
+        canonical = {
+          id: `mock_message_${String(++messageCounter).padStart(4, '0')}`,
+          conversation_id: context.conversationId,
+          client_mutation_id: context.clientMutationId,
+          sender: message.sender,
+          sender_id: context.senderId,
+          text: message.text,
+          attachment: null,
+          sent_at: sentAt,
+          created_at: sentAt,
+          updated_at: sentAt,
+          deleted_at: null,
+          delivery_status: 'sent',
+        }
+        canonicalByMutationId.set(context.clientMutationId, canonical)
+      }
+      return { status: true, canonical }
     },
     subscribe(listener) {
       listeners.add(listener)

@@ -125,6 +125,7 @@ npm run build
 | Package | نام |
 |---|---|
 | Auth | `@superapp/auth` |
+| Chat | `@superapp/chat` |
 | Conversation Inbox | `@superapp/conversation-inbox` |
 | Hub Client | `@superapp/hub-client` |
 | Local DB | `@superapp/local-db` |

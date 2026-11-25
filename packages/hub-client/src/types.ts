@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ServiceSession } from '@superapp/auth'
-import type { ConnectionTicket, HubMessage } from '@superapp/chat-contracts'
+import type { CanonicalMessage, ConnectionTicket, HubMessage } from '@superapp/chat-contracts'
 
 export type HubConnectionState =
   'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'expired' | 'error'
@@ -9,6 +9,14 @@ export interface HubAck {
   status: boolean
   message?: string
   code?: string
+  canonical?: CanonicalMessage
+}
+
+export interface HubSendContext {
+  clientMutationId: string
+  conversationId: string
+  senderId: string
+  sentAt?: string
 }
 
 export type HubEvent =
@@ -22,7 +30,7 @@ export type HubEvent =
 export interface HubTransport {
   connect(options: { url: string; connectionToken: string }): Promise<void>
   disconnect(): void
-  send(message: HubMessage): Promise<HubAck>
+  send(message: HubMessage, context?: HubSendContext): Promise<HubAck>
   subscribe(listener: (event: HubEvent) => void): () => void
 }
 
@@ -39,7 +47,7 @@ export interface HubConnectionContextValue {
   connect: () => Promise<void>
   disconnect: () => void
   retry: () => Promise<void>
-  sendMessage: (message: HubMessage) => Promise<HubAck>
+  sendMessage: (message: HubMessage, context?: HubSendContext) => Promise<HubAck>
   subscribe: (listener: (message: HubMessage) => void) => () => void
   startBuffering: () => void
   stopBuffering: () => HubMessage[]

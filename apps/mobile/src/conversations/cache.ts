@@ -1,5 +1,10 @@
 import type { ServiceSession } from '@superapp/auth'
-import type { ConversationListQuery } from '@superapp/chat-contracts'
+import type {
+  CanonicalMessage,
+  ConversationListQuery,
+  MessageListQuery,
+} from '@superapp/chat-contracts'
+import type { MessageCache } from '@superapp/chat'
 import {
   createConversationCacheScope,
   parseConversationCacheScope,
@@ -7,12 +12,15 @@ import {
 } from '@superapp/conversation-inbox'
 import {
   ConversationRepository,
+  MessageRepository,
   createExpoDatabaseFactory,
   type LocalDatabase,
 } from '@superapp/local-db'
 
 let databasePromise: Promise<LocalDatabase> | null = null
-const caches = new Map<string, ConversationCache>()
+type MobileMessagingCache = ConversationCache & MessageCache
+
+const caches = new Map<string, MobileMessagingCache>()
 
 function getDatabase() {
   if (!databasePromise) {
@@ -26,12 +34,12 @@ function getDatabase() {
   return databasePromise
 }
 
-export function createMobileConversationCache(scope: string): ConversationCache {
+export function createMobileConversationCache(scope: string): MobileMessagingCache {
   const existing = caches.get(scope)
   if (existing) return existing
 
   let active = true
-  const cache: ConversationCache = {
+  const cache: MobileMessagingCache = {
     async list(ownerId, query: ConversationListQuery) {
       if (!active) return { items: [], next_cursor: null, has_more: false }
       const database = await getDatabase()
@@ -46,6 +54,38 @@ export function createMobileConversationCache(scope: string): ConversationCache 
         limit: query.limit,
       })
       return active ? result : { items: [], next_cursor: null, has_more: false }
+    },
+
+    async listMessages(ownerId, conversationId, query: MessageListQuery = {}) {
+      if (!active) return { items: [], next_cursor: null, has_more: false }
+      const database = await getDatabase()
+      const result = await new MessageRepository(database).list(ownerId, conversationId, {
+        cursor: query.cursor,
+        before: query.before,
+        limit: query.limit,
+      })
+      return active ? result : { items: [], next_cursor: null, has_more: false }
+    },
+
+    async saveMessages(
+      ownerId,
+      conversationId,
+      messages: CanonicalMessage[],
+      syncedAt = new Date().toISOString(),
+    ) {
+      if (!active) return
+      parseConversationCacheScope(ownerId)
+      const database = await getDatabase()
+      await database.transaction(async (transaction) => {
+        if (!active) return
+        const repository = new MessageRepository(transaction)
+        for (const message of messages) {
+          if (message.conversation_id !== conversationId) {
+            throw new Error('Message does not belong to the active conversation')
+          }
+          await repository.upsert(ownerId, message, syncedAt)
+        }
+      })
     },
 
     async save(ownerId, _query, page, syncedAt = new Date().toISOString(), completeSnapshot) {

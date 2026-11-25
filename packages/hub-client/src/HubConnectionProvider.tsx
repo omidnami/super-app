@@ -4,6 +4,7 @@ import type {
   HubConnectionContextValue,
   HubConnectionProviderProps,
   HubConnectionState,
+  HubSendContext,
 } from './types'
 
 const HubConnectionContext = createContext<HubConnectionContextValue | null>(null)
@@ -163,11 +164,11 @@ export function HubConnectionProvider({
   }, [])
 
   const sendMessage = useCallback(
-    async (message: HubMessage) => {
+    async (message: HubMessage, context?: HubSendContext) => {
       if (stateRef.current !== 'connected') {
         return { status: false, code: 'DISCONNECTED', message: 'Hub is disconnected' }
       }
-      return transport.send(message)
+      return transport.send(message, context)
     },
     [transport],
   )

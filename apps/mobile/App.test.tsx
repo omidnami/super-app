@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native'
 import App from './App'
 
 const mockStorage = new Map<string, string>()
@@ -63,9 +63,18 @@ describe('Independent service auth', () => {
     await act(async () => {
       fireEvent.press(getByLabelText('باز کردن گفتگو علی محمدی'))
     })
-    await waitFor(() => expect(getByText('صفحه گفتگو')).toBeTruthy())
+    await waitFor(() => expect(getByLabelText('تاریخچه پیام‌ها')).toBeTruthy())
     await act(async () => {
-      fireEvent.press(getByLabelText('بازگشت به گفتگوها'))
+      fireEvent.changeText(getByLabelText('متن پیام'), 'پاسخ آزمایشی اپراتور')
+    })
+    await waitFor(() => expect(getByLabelText('متن پیام').props.value).toBe('پاسخ آزمایشی اپراتور'))
+    await act(async () => {
+      fireEvent.press(getByLabelText('ارسال'))
+    })
+    await waitFor(() => expect(getByLabelText('شما: پاسخ آزمایشی اپراتور')).toBeTruthy())
+    expect(within(getByLabelText('شما: پاسخ آزمایشی اپراتور')).getByText('ارسال‌شده')).toBeTruthy()
+    await act(async () => {
+      fireEvent.press(getByLabelText('بازگشت'))
     })
     await waitFor(() => expect(getByText('علی محمدی')).toBeTruthy())
 
