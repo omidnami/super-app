@@ -1,3 +1,4 @@
+export { createMediaCacheKey } from './cache'
 export { canSendVoice, formatFileSize, validateMediaFile } from './validation'
 export { useMediaUpload } from './useMediaUpload'
 export type {

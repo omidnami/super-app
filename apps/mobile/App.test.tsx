@@ -55,6 +55,8 @@ jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
   getInfoAsync: async () => ({ exists: false, isDirectory: false }),
   downloadAsync: async () => ({ status: 200, uri: 'file:///cache/file' }),
+  makeDirectoryAsync: async () => undefined,
+  moveAsync: async () => undefined,
   deleteAsync: async () => undefined,
 }))
 

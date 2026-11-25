@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { UploadAttachmentRequest } from '@superapp/chat-contracts'
+import type { AttachmentUploadSource } from '@superapp/api-client'
 import { validateMediaFile } from './validation'
 import type {
   MediaFile,
@@ -142,9 +143,15 @@ export function useMediaUpload({
           file_size: file.size,
           ...(file.duration === undefined ? {} : { duration: file.duration }),
         }
+        const uploadSource: AttachmentUploadSource | undefined = file.blob
+          ? { kind: 'blob', blob: file.blob, name: file.name, type: file.mimeType }
+          : file.uri
+            ? { kind: 'native', uri: file.uri, name: file.name, type: file.mimeType }
+            : undefined
         const attachment = await api.media.uploadAttachment(request, {
           conversationId,
           accessToken,
+          uploadSource,
           signal: controller.signal,
           onProgress: (percent) => {
             if (!isCurrent() || !Number.isFinite(percent)) return

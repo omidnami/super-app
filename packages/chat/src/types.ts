@@ -3,6 +3,7 @@ import type {
   Attachment,
   CanonicalMessage,
   Conversation,
+  DeliveryStatus,
   MessageListQuery,
   Paginated,
 } from '@superapp/chat-contracts'
@@ -13,6 +14,7 @@ export type ChatDataSource = 'remote' | 'cache'
 export interface ChatSendResult {
   ok: boolean
   code?: 'EMPTY' | 'TOO_LONG' | 'OFFLINE' | 'DISCONNECTED'
+  deliveryStatus?: DeliveryStatus
 }
 
 export interface MessageCache {

@@ -42,6 +42,7 @@ export interface FileBubbleProps {
   conversationId: string
   accessToken?: string
   isOnline?: boolean
+  cacheKey?: string
   onError?: (error: Error) => void
 }
 
@@ -186,12 +187,12 @@ function safePathSegment(value: string, fallback: string): string {
   return sanitized.slice(0, 100) || fallback
 }
 
-function cachedFileName(attachment: Attachment): string {
+function cachedFileName(attachment: Attachment, cacheKey: string): string {
   const extensionFromName = /\.([a-z0-9]{1,10})$/i.exec(attachment.file_name)?.[1]?.toLowerCase()
   const mimeType = attachment.mime_type.split(';')[0]?.trim().toLowerCase() ?? ''
   const extension = extensionFromName ?? mimeExtensions[mimeType] ?? 'bin'
   const baseName = attachment.file_name.replace(/\.[^.]+$/, '') || 'attachment'
-  return `${safePathSegment(baseName, 'attachment')}-${safePathSegment(attachment.id, 'file')}.${extension}`
+  return `${safePathSegment(cacheKey, 'scope')}-${safePathSegment(baseName, 'attachment')}-${safePathSegment(attachment.id, 'file')}.${extension}`
 }
 
 function secureMediaApi(api: ConversationApi): ConversationMediaApi {
@@ -235,11 +236,21 @@ function resolveAttachmentContent(content: unknown): ResolvedAttachmentContent {
   throw new Error('محتوای فایل معتبر نیست.')
 }
 
-async function saveBlobToCache(blob: Blob, attachment: Attachment): Promise<string> {
-  const file = new File(Paths.cache, cachedFileName(attachment))
+async function saveBlobToCache(
+  blob: Blob,
+  attachment: Attachment,
+  cacheDirectory: string,
+  cacheKey: string,
+): Promise<string> {
+  await FileSystem.makeDirectoryAsync(cacheDirectory, { intermediates: true })
+  const fileName = cachedFileName(attachment, cacheKey)
+  const temporaryPath = `${cacheDirectory}${fileName}.part`
+  const localPath = `${cacheDirectory}${fileName}`
+  const file = new File(Paths.cache, `superapp-media/${fileName}.part`)
   file.create({ overwrite: true })
   await file.write(new Uint8Array(await blob.arrayBuffer()))
-  return file.uri
+  await FileSystem.moveAsync({ from: temporaryPath, to: localPath })
+  return localPath
 }
 
 function downloadErrorMessage(error: unknown): string {
@@ -420,11 +431,12 @@ export function FileBubble({
   conversationId,
   accessToken,
   isOnline = true,
+  cacheKey = conversationId,
   onError,
 }: FileBubbleProps) {
   const { tokens } = useTheme()
-  const cacheDirectory = FileSystem.cacheDirectory ?? Paths.cache.uri
-  const localPath = `${cacheDirectory}${cachedFileName(attachment)}`
+  const cacheDirectory = `${FileSystem.cacheDirectory ?? Paths.cache.uri}superapp-media/`
+  const localPath = `${cacheDirectory}${cachedFileName(attachment, cacheKey)}`
   const [downloadState, setDownloadState] = useState<DownloadState>({
     phase: 'checking',
     localUri: null,
@@ -460,7 +472,7 @@ export function FileBubble({
       .then((info) => {
         if (cancelled || !mountedRef.current || operationRef.current !== operation) return
         setDownloadState(
-          info.exists && !info.isDirectory
+          info.exists && !info.isDirectory && info.size > 0
             ? { phase: 'ready', localUri: info.uri, error: null }
             : { phase: 'idle', localUri: null, error: null },
         )
@@ -500,9 +512,11 @@ export function FileBubble({
       const resolvedContent = resolveAttachmentContent(content)
       let localUri: string
       if (resolvedContent.kind === 'url') {
+        await FileSystem.makeDirectoryAsync(cacheDirectory, { intermediates: true })
+        const temporaryPath = `${localPath}.part`
         const result = await FileSystem.downloadAsync(
           resolvedContent.url,
-          localPath,
+          temporaryPath,
           resolvedContent.headers ? { headers: resolvedContent.headers } : undefined,
         )
         if (!isCurrent()) return
@@ -511,9 +525,10 @@ export function FileBubble({
           Object.assign(error, { status: result.status })
           throw error
         }
-        localUri = result.uri || localPath
+        await FileSystem.moveAsync({ from: temporaryPath, to: localPath })
+        localUri = localPath
       } else {
-        localUri = await saveBlobToCache(resolvedContent.blob, attachment)
+        localUri = await saveBlobToCache(resolvedContent.blob, attachment, cacheDirectory, cacheKey)
       }
       if (!isCurrent()) return
       setDownloadState({ phase: 'ready', localUri, error: null })
@@ -522,6 +537,7 @@ export function FileBubble({
       if (controller.signal.aborted || error.name === 'AbortError' || !isCurrent()) return
       try {
         await FileSystem.deleteAsync(localPath, { idempotent: true })
+        await FileSystem.deleteAsync(`${localPath}.part`, { idempotent: true })
       } catch {
         // A failed cleanup must not hide the original download error.
       }
@@ -538,7 +554,7 @@ export function FileBubble({
         requestRef.current = null
       }
     }
-  }, [accessToken, api, attachment, conversationId, isOnline, localPath])
+  }, [accessToken, api, attachment, cacheDirectory, cacheKey, conversationId, isOnline, localPath])
 
   const share = async () => {
     const localUri = downloadState.localUri

@@ -2,10 +2,15 @@ import type { Attachment, AttachmentType, UploadAttachmentRequest } from '@super
 import attachmentFixtures from '../mocks/fixtures/attachments.json'
 import messageFixtures from '../mocks/fixtures/messages.json'
 
+export type AttachmentUploadSource =
+  | { kind: 'blob'; blob: Blob; name: string; type: string }
+  | { kind: 'native'; uri: string; name: string; type: string }
+
 export interface MediaRequestContext {
   accessToken?: string
   conversationId: string
   signal?: AbortSignal
+  uploadSource?: AttachmentUploadSource
 }
 
 export interface MediaContentResult {
@@ -144,7 +149,7 @@ function waitForMockProgress(milliseconds: number, signal?: AbortSignal): Promis
 
 function assertRequest(request: UploadAttachmentRequest, context: MediaRequestContext) {
   throwIfAborted(context.signal)
-  if (!context.conversationId) {
+  if (!context.conversationId.trim()) {
     throw new PlanetApiError('شناسه گفتگو برای ارسال فایل لازم است.', 400)
   }
   if (!isUploadAttachmentRequest(request)) {
@@ -165,6 +170,9 @@ export function createMockMediaApi(): ConversationMediaApi {
 
   function findAttachment(id: string, context: MediaRequestContext) {
     throwIfAborted(context.signal)
+    if (!context.conversationId.trim()) {
+      throw new PlanetApiError('شناسه گفتگو برای دریافت فایل لازم است.', 400)
+    }
     const stored = attachments.get(id)
     if (!stored) throw new PlanetApiError('فایل پیدا نشد.', 404)
     if (stored.conversationId !== context.conversationId) {
@@ -269,6 +277,9 @@ export function createPlanetMediaApi({
     context: MediaRequestContext,
   ): Promise<Response> {
     throwIfAborted(context.signal)
+    if (!context.conversationId.trim()) {
+      throw new PlanetApiError('شناسه گفتگو برای دریافت فایل لازم است.', 400)
+    }
     const accessToken = context.accessToken || (getAccessToken ? await getAccessToken() : undefined)
     throwIfAborted(context.signal)
     const headers = new Headers(init.headers)
@@ -300,10 +311,34 @@ export function createPlanetMediaApi({
   return {
     async uploadAttachment(requestBody, context) {
       assertRequest(requestBody, context)
-      const headers = new Headers({ 'Content-Type': 'application/json' })
+      const headers = new Headers({ Accept: 'application/json' })
+      let body: BodyInit
+      if (context.uploadSource) {
+        const form = new FormData()
+        const source = context.uploadSource
+        if (source.kind === 'blob') {
+          form.append('file', source.blob, source.name)
+        } else {
+          form.append('file', {
+            uri: source.uri,
+            name: source.name,
+            type: source.type,
+          } as unknown as Blob)
+        }
+        form.append('kind', requestBody.kind)
+        form.append('file_name', requestBody.file_name)
+        form.append('mime_type', requestBody.mime_type)
+        form.append('file_size', String(requestBody.file_size))
+        if (requestBody.duration !== undefined)
+          form.append('duration', String(requestBody.duration))
+        body = form
+      } else {
+        headers.set('Content-Type', 'application/json')
+        body = JSON.stringify(requestBody)
+      }
       const response = await request(
         '/api/v1/chat/attachments',
-        { method: 'POST', headers, body: JSON.stringify(requestBody) },
+        { method: 'POST', headers, body },
         context,
       )
       const payload = await responseData(response, context.signal)

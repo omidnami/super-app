@@ -18,7 +18,13 @@ import type {
 } from '@superapp/chat-contracts'
 import { type MessageCache, useChat } from '@superapp/chat'
 import { conversationTitle } from '@superapp/conversation-inbox'
-import { canSendVoice, formatFileSize, useMediaUpload, type MediaFile } from '@superapp/media'
+import {
+  canSendVoice,
+  createMediaCacheKey,
+  formatFileSize,
+  useMediaUpload,
+  type MediaFile,
+} from '@superapp/media'
 import { useTheme } from '@superapp/theme'
 import { Badge, Button } from './primitives'
 import { AttachmentPicker, FileBubble, UploadProgress, VoiceRecorder } from './media'
@@ -175,6 +181,7 @@ export function ChatBubble({
     conversationId: string
     accessToken?: string
     isOnline: boolean
+    cacheKey: string
   }
 }) {
   const { tokens } = useTheme()
@@ -206,6 +213,7 @@ export function ChatBubble({
           conversationId={media.conversationId}
           accessToken={media.accessToken}
           isOnline={media.isOnline}
+          cacheKey={media.cacheKey}
         />
       ) : message.text ? (
         <Text
@@ -268,6 +276,7 @@ export function ChatScreen({
     onUploaded: setReadyAttachment,
   })
   const scrollRef = useRef<ScrollViewInstance>(null)
+  const mediaCacheKey = createMediaCacheKey(ownerId, operatorId, conversation.id)
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true })
@@ -282,7 +291,7 @@ export function ChatScreen({
       setReadyAttachment(attachment)
     }
     const result = await chat.send(text, attachment || undefined)
-    if (result.ok) {
+    if (result.ok && result.deliveryStatus === 'sent') {
       setText('')
       setPendingFile(null)
       setReadyAttachment(null)
@@ -344,7 +353,13 @@ export function ChatScreen({
             <ChatBubble
               key={message.id}
               message={message}
-              media={{ api, conversationId: conversation.id, accessToken, isOnline }}
+              media={{
+                api,
+                conversationId: conversation.id,
+                accessToken,
+                isOnline,
+                cacheKey: mediaCacheKey,
+              }}
             />
           ))
         )}

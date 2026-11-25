@@ -1,19 +1,28 @@
 import { useState } from 'react'
 import { Text } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
-import { createMockAuthAdapter } from '@superapp/auth'
+import { createMockAuthAdapter, type ServiceSession } from '@superapp/auth'
 import { useTheme } from '@superapp/theme'
 import { ServiceAuthBoundary, ServiceSessionProvider } from '@superapp/ui'
 import { Card, MiniAppShell, MobileNavigation, Tabs } from '@superapp/ui/native'
 import { mobileAuthStorage } from './src/auth/storage'
 import { AuthDemo } from './src/components/AuthDemo'
 import { clearConversationCacheForSession } from './src/conversations/cache'
+import { clearMobileMediaCache } from './src/conversations/media-cache'
 import { MessagingHub } from './src/components/HubDemo'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
 import { UiKitGallery } from './src/components/UiKitGallery'
 
 const authAdapter = createMockAuthAdapter()
+
+async function handleMessagingLogout(session: ServiceSession) {
+  try {
+    await clearConversationCacheForSession(session)
+  } finally {
+    await clearMobileMediaCache()
+  }
+}
 
 const moduleMeta = {
   superapp: { title: 'سوپرآپ', subtitle: 'دسترسی سریع و ابزارهای مشترک' },
@@ -84,7 +93,7 @@ function AppContent() {
             service={activeModule}
             storage={mobileAuthStorage}
             adapter={authAdapter}
-            onLogout={activeModule === 'messaging' ? clearConversationCacheForSession : undefined}
+            onLogout={activeModule === 'messaging' ? handleMessagingLogout : undefined}
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
               {activeModule === 'messaging' ? (

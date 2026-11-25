@@ -36,6 +36,7 @@ describe('media UI', () => {
       mimeType: 'image/png',
       size: 5,
       type: 'photo',
+      blob: expect.any(File),
     })
   })
 

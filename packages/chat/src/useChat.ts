@@ -430,11 +430,11 @@ export function useChat({
           },
         )
       } catch {
-        if (!isCurrent()) return { ok: true }
+        if (!isCurrent()) return { ok: true, deliveryStatus: 'unknown' }
         setSendActive(clientMutationId, false)
         updateDeliveryStatus(optimistic.id, 'unknown')
         setError(DEFAULT_SEND_ERROR)
-        return { ok: true }
+        return { ok: true, deliveryStatus: 'unknown' }
       }
 
       const timeout = new Promise<void>((resolve) => {
@@ -449,7 +449,10 @@ export function useChat({
         }, sendTimeoutMs)
       })
       await Promise.race([request, timeout])
-      return { ok: true }
+      const deliveryStatus =
+        messagesRef.current.find((message) => message.client_mutation_id === clientMutationId)
+          ?.delivery_status || 'unknown'
+      return { ok: true, deliveryStatus }
     },
     [
       conversation,

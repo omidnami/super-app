@@ -97,6 +97,7 @@ export function AttachmentPicker({ disabled = false, onSelect, onError }: Attach
         mimeType: file.type || DEFAULT_MIME_TYPE,
         size: file.size,
         type: inferAttachmentType(file),
+        blob: file,
       })
     } catch (error) {
       onError?.(toError(error))
@@ -673,6 +674,7 @@ export function VoiceRecorder({ disabled = false, onRecorded, onError }: VoiceRe
             mimeType: recordedMimeType,
             size: blob.size,
             type: 'voice',
+            blob,
             duration: recordedDuration,
           })
         } catch (reason) {

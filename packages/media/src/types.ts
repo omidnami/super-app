@@ -8,6 +8,7 @@ export interface MediaFile {
   size: number
   type: AttachmentType
   duration?: number
+  blob?: Blob
 }
 
 export type MediaUploadStatus = 'idle' | 'uploading' | 'success' | 'error' | 'cancelled'

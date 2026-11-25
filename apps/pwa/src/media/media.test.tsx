@@ -13,6 +13,7 @@ import {
 } from '../../../../packages/api-client/src'
 import {
   canSendVoice,
+  createMediaCacheKey,
   formatFileSize,
   useMediaUpload,
   validateMediaFile,
@@ -172,6 +173,12 @@ describe('media validation', () => {
     expect(formatFileSize(1536)).toBe('1.5 KB')
     expect(formatFileSize(2 * MEGABYTE)).toBe('2 MB')
   })
+
+  it('scopes offline media cache keys by operator, project and conversation', () => {
+    const first = createMediaCacheKey('scope_1', 'op_1', 'conv_1')
+    expect(first).not.toBe(createMediaCacheKey('scope_1', 'op_2', 'conv_1'))
+    expect(first).not.toBe(createMediaCacheKey('scope_1', 'op_1', 'conv_2'))
+  })
 })
 
 describe('mock media adapter', () => {
@@ -290,6 +297,43 @@ describe('Planet media adapter', () => {
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer explicit_token')
     expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json')
     expect(JSON.parse(String(init?.body))).toEqual(uploadRequest)
+  })
+
+  it('uploads real file bytes as multipart when a source is provided', async () => {
+    const stored = attachment()
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(stored, 201))
+    const media = createPlanetMediaApi({ baseUrl: 'https://planet.example', fetch: fetchImpl })
+    const blob = new Blob(['file-bytes'], { type: 'image/png' })
+
+    await media.uploadAttachment(uploadRequest, {
+      conversationId: 'conv_1',
+      uploadSource: { kind: 'blob', blob, name: 'photo.png', type: 'image/png' },
+    })
+
+    const [, init] = fetchImpl.mock.calls[0]!
+    expect(init?.body).toBeInstanceOf(FormData)
+    const form = init?.body as FormData
+    const uploaded = form.get('file') as Blob
+    expect(uploaded).toBeInstanceOf(Blob)
+    expect(await uploaded.text()).toBe('file-bytes')
+    expect(form.get('kind')).toBe('photo')
+    expect(new Headers(init?.headers).get('Content-Type')).toBeNull()
+  })
+
+  it('rejects empty conversation scopes for uploads and reads', async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+    const media = createPlanetMediaApi({ baseUrl: 'https://planet.example', fetch: fetchImpl })
+
+    await expect(
+      media.uploadAttachment(uploadRequest, { conversationId: '   ' }),
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(media.getAttachment('att_1', { conversationId: '' })).rejects.toMatchObject({
+      status: 400,
+    })
+    await expect(media.getAttachmentContent('att_1', { conversationId: '' })).rejects.toMatchObject(
+      { status: 400 },
+    )
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('gets metadata without persisting a provider URL', async () => {

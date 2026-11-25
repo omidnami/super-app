@@ -30,7 +30,7 @@ UI مستقیماً Project Token Hub را دریافت یا استفاده نم
 
 1. انتخاب یا ضبط فایل
 2. اعتبارسنجی نوع، حجم و پشتیبانی کانال
-3. ارسال metadata به Planet با Bearer Token پیام‌رسان
+3. ارسال فایل و metadata به Planet با Bearer Token پیام‌رسان؛ Multipart در Adapter واقعی و JSON Mock در MVP
 4. دریافت `attachment_id` پایدار
 5. ارسال پیام Hub با همان Attachment در فیلد `file`
 
@@ -67,6 +67,8 @@ UI مستقیماً Project Token Hub را دریافت یا استفاده نم
 - فایل متعلق به Conversation دیگر با 403 رد می‌شود.
 - URL موقت Provider در Message یا SQLite ذخیره نمی‌شود.
 - نسخه دانلودشده در Cache دستگاه یا Object URL موقت مرورگر نگهداری می‌شود.
+- مسیر Cache موبایل با Scope اپراتور، پروژه و Conversation ساخته می‌شود و در Logout پاک می‌شود.
+- دانلود Native ابتدا به فایل `.part` می‌نویسد و تنها پس از موفقیت به مسیر نهایی Move می‌شود.
 
 ---
 
@@ -85,6 +87,7 @@ UI مستقیماً Project Token Hub را دریافت یا استفاده نم
 - Retry همان فایل انتخاب‌شده را استفاده می‌کند.
 - خطای آپلود، فایل Pending را حذف نمی‌کند.
 - پس از آپلود موفق و قطع Hub، Attachment آماده نگه داشته می‌شود تا ارسال دوباره، آپلود تکراری نسازد.
+- Composer فقط پس از وضعیت `sent` فایل و متن را پاک می‌کند؛ در `failed` یا `unknown` برای Retry حفظ می‌شوند.
 
 ---
 
@@ -93,7 +96,8 @@ UI مستقیماً Project Token Hub را دریافت یا استفاده نم
 - اعتبارسنجی نوع، حجم و Voice per Channel
 - پیشرفت آپلود Mock
 - دسترسی 403 به Attachment گفتگوی دیگر
-- Bearer Token و Abort در Adapter واقعی
+- Bearer Token، Abort و ارسال بایت فایل با Multipart در Adapter واقعی
+- رد Conversation خالی در Upload و Read
 - Cancel، Retry و خطای آپلود
 - ارسال Attachment-only با HubMessage هفت‌فیلدی
 - نمایش فایل/ویس و حالت نیاز به اینترنت

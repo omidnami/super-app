@@ -6,7 +6,18 @@ import type {
 } from '@superapp/chat-contracts'
 
 export function sanitizeAttachment(attachment: Attachment | null): Attachment | null {
-  return attachment ? { ...attachment, url: null } : null
+  if (!attachment) return null
+  return {
+    id: attachment.id,
+    provider: attachment.provider,
+    type: attachment.type,
+    file_name: attachment.file_name,
+    mime_type: attachment.mime_type,
+    file_size: attachment.file_size,
+    duration: attachment.duration ?? null,
+    url: null,
+    created_at: attachment.created_at,
+  }
 }
 
 function attachmentSignature(attachment: HubMessage['file']) {

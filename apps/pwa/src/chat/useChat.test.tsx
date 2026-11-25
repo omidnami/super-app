@@ -182,8 +182,9 @@ describe('useChat sends', () => {
       file_size: 1024,
       duration: null,
       url: 'https://temporary-provider.example/file',
+      download_url: 'https://temporary-provider.example/download',
       created_at: '2026-11-25T10:00:00.000Z',
-    }
+    } as Attachment
     const hub = createMockHubTransport()
     const send = vi.spyOn(hub.transport, 'send')
     const { result } = renderChat({ hub })
@@ -195,12 +196,20 @@ describe('useChat sends', () => {
 
     const [wireMessage] = send.mock.calls[0]!
     expect(Object.keys(wireMessage)).toHaveLength(7)
-    expect(wireMessage.file).toEqual({ ...attachment, url: null })
+    expect(wireMessage.file).toMatchObject({ id: attachment.id, url: null })
+    expect(wireMessage.file).not.toHaveProperty('download_url')
     expect(result.current.messages[0]).toMatchObject({
       text: '',
-      attachment: { ...attachment, url: null },
+      attachment: { id: attachment.id, url: null },
       delivery_status: 'sent',
     })
+    expect(result.current.messages[0]?.attachment).not.toHaveProperty('download_url')
+
+    send.mockResolvedValueOnce({ status: false, code: 'REJECTED', message: 'rejected' })
+    await act(async () => {
+      await result.current.send('', attachment)
+    })
+    expect(result.current.messages[1]?.delivery_status).toBe('failed')
   })
 
   it('replaces an optimistic message with the ACK canonical message and keeps context local', async () => {
@@ -253,7 +262,7 @@ describe('useChat sends', () => {
 
     expect(result.current.messages).toEqual([canonical])
     expect(cache.saveMessages).toHaveBeenLastCalledWith('op_42', conversation.id, [canonical])
-    expect(await sending).toEqual({ ok: true })
+    expect(await sending).toEqual({ ok: true, deliveryStatus: 'sent' })
     expect(result.current.isSending).toBe(false)
     expect(result.current.error).toBeNull()
   })
@@ -340,7 +349,7 @@ describe('useChat sends', () => {
     await act(async () => {
       sendResult = await result.current.send('تأییدیه بدون canonical')
     })
-    expect(sendResult).toEqual({ ok: true })
+    expect(sendResult).toEqual({ ok: true, deliveryStatus: 'sent' })
     expect(result.current.messages[2]?.delivery_status).toBe('sent')
     expect(result.current.error).toBeNull()
     expect(send).toHaveBeenCalledTimes(3)

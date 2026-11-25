@@ -259,7 +259,7 @@ export function ChatScreen({
       setReadyAttachment(attachment)
     }
     const result = await chat.send(text, attachment || undefined)
-    if (result.ok) {
+    if (result.ok && result.deliveryStatus === 'sent') {
       setText('')
       setPendingFile(null)
       setReadyAttachment(null)
