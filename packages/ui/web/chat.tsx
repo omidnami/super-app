@@ -258,6 +258,13 @@ export function ChatScreen({
     onUploaded: setReadyAttachment,
   })
   const resetUpload = upload.reset
+  const selectPendingFile = (file: MediaFile) => {
+    setPendingFile(file)
+    setReadyAttachment(null)
+    setSendingMutationId(null)
+    setMediaError(null)
+    resetUpload()
+  }
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -347,24 +354,13 @@ export function ChatScreen({
         <div className="chat-media-buttons">
           <AttachmentPicker
             disabled={chat.isOffline || upload.status === 'uploading'}
-            onSelect={(file) => {
-              setPendingFile(file)
-              setReadyAttachment(null)
-              setSendingMutationId(null)
-              setMediaError(null)
-              resetUpload()
-            }}
+            onSelect={selectPendingFile}
             onError={(error) => setMediaError(error.message)}
           />
           {canSendVoice(conversation.source) ? (
             <VoiceRecorder
               disabled={chat.isOffline || upload.status === 'uploading'}
-              onRecorded={(file) => {
-                setPendingFile(file)
-                setReadyAttachment(null)
-                setMediaError(null)
-                resetUpload()
-              }}
+              onRecorded={selectPendingFile}
               onError={(error) => setMediaError(error.message)}
             />
           ) : null}

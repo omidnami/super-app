@@ -8,6 +8,7 @@ import {
   createMockTicketAdapter,
   HubConnectionProvider,
   type HubAck,
+  type HubSendContext,
 } from '@superapp/hub-client'
 import { ChatScreen } from '@superapp/ui/web'
 import { AppThemeProvider } from '../theme/AppThemeProvider'
@@ -58,81 +59,108 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
+function setupLateAckChat() {
+  const acknowledgement = deferred<HubAck>()
+  const hub = createMockHubTransport()
+  const send = vi.spyOn(hub.transport, 'send').mockReturnValue(acknowledgement.promise)
+  const api: ConversationApi = {
+    media: {
+      uploadAttachment: vi.fn(async () => attachment),
+      getAttachment: vi.fn(async () => attachment),
+      getAttachmentContent: vi.fn(async () => ({
+        attachment,
+        blob: new Blob(['image'], { type: 'image/png' }),
+      })),
+    },
+    list: vi.fn(),
+    get: vi.fn(),
+    listMessages: vi.fn(async () => ({
+      items: [],
+      next_cursor: null,
+      has_more: false,
+      conversation,
+    })),
+  }
+
+  render(
+    <AppThemeProvider>
+      <HubConnectionProvider
+        session={session}
+        ticketAdapter={createMockTicketAdapter()}
+        transport={hub.transport}
+      >
+        <ChatScreen
+          conversation={conversation}
+          api={api}
+          ownerId="scope_1"
+          operatorId="op_42"
+          sendTimeoutMs={10}
+          onBack={() => undefined}
+        />
+      </HubConnectionProvider>
+    </AppThemeProvider>,
+  )
+  return { acknowledgement, send }
+}
+
+async function beginTimedOutSend(send: ReturnType<typeof setupLateAckChat>['send']) {
+  fireEvent.change(screen.getByLabelText('انتخاب فایل'), {
+    target: { files: [new File(['image'], 'photo.png', { type: 'image/png' })] },
+  })
+  fireEvent.change(screen.getByLabelText('متن پیام'), {
+    target: { value: 'توضیح تصویر' },
+  })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'ارسال' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'ارسال' }))
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+  expect(await screen.findByText('نامشخص')).toBeInTheDocument()
+  return send.mock.calls[0]![1] as HubSendContext
+}
+
+function canonicalFor(context: HubSendContext): CanonicalMessage {
+  return {
+    id: 'msg_1',
+    conversation_id: conversation.id,
+    client_mutation_id: context.clientMutationId,
+    sender: 'operator',
+    sender_id: 'op_42',
+    text: 'توضیح تصویر',
+    attachment,
+    sent_at: context.sentAt!,
+    created_at: context.sentAt!,
+    updated_at: context.sentAt!,
+    deleted_at: null,
+    delivery_status: 'sent',
+  }
+}
+
 describe('ChatScreen late ACK reconciliation', () => {
   it('clears a retained uploaded attachment when a timed-out send is confirmed later', async () => {
-    const acknowledgement = deferred<HubAck>()
-    const hub = createMockHubTransport()
-    const send = vi.spyOn(hub.transport, 'send').mockReturnValue(acknowledgement.promise)
-    const api: ConversationApi = {
-      media: {
-        uploadAttachment: vi.fn(async () => attachment),
-        getAttachment: vi.fn(async () => attachment),
-        getAttachmentContent: vi.fn(async () => ({
-          attachment,
-          blob: new Blob(['image'], { type: 'image/png' }),
-        })),
-      },
-      list: vi.fn(),
-      get: vi.fn(),
-      listMessages: vi.fn(async () => ({
-        items: [],
-        next_cursor: null,
-        has_more: false,
-        conversation,
-      })),
-    }
-
-    render(
-      <AppThemeProvider>
-        <HubConnectionProvider
-          session={session}
-          ticketAdapter={createMockTicketAdapter()}
-          transport={hub.transport}
-        >
-          <ChatScreen
-            conversation={conversation}
-            api={api}
-            ownerId="scope_1"
-            operatorId="op_42"
-            sendTimeoutMs={10}
-            onBack={() => undefined}
-          />
-        </HubConnectionProvider>
-      </AppThemeProvider>,
-    )
-
-    fireEvent.change(screen.getByLabelText('انتخاب فایل'), {
-      target: { files: [new File(['image'], 'photo.png', { type: 'image/png' })] },
-    })
-    fireEvent.change(screen.getByLabelText('متن پیام'), {
-      target: { value: 'توضیح تصویر' },
-    })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'ارسال' })).toBeEnabled())
-    fireEvent.click(screen.getByRole('button', { name: 'ارسال' }))
-    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
-    expect(await screen.findByText('نامشخص')).toBeInTheDocument()
+    const { acknowledgement, send } = setupLateAckChat()
+    const context = await beginTimedOutSend(send)
     expect(screen.getByLabelText('متن پیام')).toHaveValue('توضیح تصویر')
     expect(screen.getByRole('button', { name: 'ارسال' })).toBeEnabled()
 
-    const context = send.mock.calls[0]![1]!
-    const canonical: CanonicalMessage = {
-      id: 'msg_1',
-      conversation_id: conversation.id,
-      client_mutation_id: context.clientMutationId,
-      sender: 'operator',
-      sender_id: 'op_42',
-      text: 'توضیح تصویر',
-      attachment,
-      sent_at: context.sentAt!,
-      created_at: context.sentAt!,
-      updated_at: context.sentAt!,
-      deleted_at: null,
-      delivery_status: 'sent',
-    }
-    act(() => acknowledgement.resolve({ status: true, canonical }))
+    act(() => acknowledgement.resolve({ status: true, canonical: canonicalFor(context) }))
 
     await waitFor(() => expect(screen.getByLabelText('متن پیام')).toHaveValue(''))
     expect(screen.getByRole('button', { name: 'ارسال' })).toBeDisabled()
     expect(screen.getByLabelText('شما: توضیح تصویر')).toBeInTheDocument()
+  })
+
+  it('does not let an old ACK clear a replacement file or voice recording', async () => {
+    const { acknowledgement, send } = setupLateAckChat()
+    const context = await beginTimedOutSend(send)
+
+    fireEvent.change(screen.getByLabelText('انتخاب فایل'), {
+      target: { files: [new File(['new'], 'replacement.png', { type: 'image/png' })] },
+    })
+    expect(screen.getByText(/replacement\.png/)).toBeInTheDocument()
+    act(() => acknowledgement.resolve({ status: true, canonical: canonicalFor(context) }))
+
+    await waitFor(() => expect(screen.getByLabelText('شما: توضیح تصویر')).toBeInTheDocument())
+    expect(screen.getByText(/replacement\.png/)).toBeInTheDocument()
+    expect(screen.getByLabelText('متن پیام')).toHaveValue('توضیح تصویر')
+    expect(screen.getByRole('button', { name: 'ارسال' })).toBeEnabled()
   })
 })

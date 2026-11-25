@@ -7,6 +7,7 @@ export type {
   HubConnectionProviderProps,
   HubConnectionState,
   HubEvent,
+  HubSendContext,
   HubTransport,
   TicketAdapter,
 } from './types'
