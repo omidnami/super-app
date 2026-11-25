@@ -4,6 +4,7 @@ import { ServiceAuthBoundary, ServiceSessionProvider } from '@superapp/ui'
 import { AppShell, Card, Tabs } from '@superapp/ui/web'
 import { pwaAuthStorage } from './auth/storage'
 import { AuthDemo } from './components/AuthDemo'
+import { MessagingHub } from './components/HubDemo'
 import { AppThemeProvider } from './theme/AppThemeProvider'
 import { ThemeGallery } from './components/ThemeGallery'
 import { UiKitGallery } from './components/UiKitGallery'
@@ -72,7 +73,11 @@ export default function App() {
             adapter={authAdapter}
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
-              <ConnectedServiceCard title={meta.title} />
+              {activeModule === 'messaging' ? (
+                <MessagingHub />
+              ) : (
+                <ConnectedServiceCard title={meta.title} />
+              )}
             </ServiceAuthBoundary>
           </ServiceSessionProvider>
         )}

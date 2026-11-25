@@ -11,6 +11,9 @@ apps/
 
 packages/
   auth/
+  conversation-inbox/
+  hub-client/
+  local-db/
   ui/
   design-tokens/
   domain/

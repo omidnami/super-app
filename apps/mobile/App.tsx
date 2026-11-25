@@ -7,6 +7,7 @@ import { ServiceAuthBoundary, ServiceSessionProvider } from '@superapp/ui'
 import { Card, MiniAppShell, MobileNavigation, Tabs } from '@superapp/ui/native'
 import { mobileAuthStorage } from './src/auth/storage'
 import { AuthDemo } from './src/components/AuthDemo'
+import { MessagingHub } from './src/components/HubDemo'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
 import { UiKitGallery } from './src/components/UiKitGallery'
@@ -84,7 +85,11 @@ function AppContent() {
             adapter={authAdapter}
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
-              <ConnectedServiceCard title={meta.title} />
+              {activeModule === 'messaging' ? (
+                <MessagingHub />
+              ) : (
+                <ConnectedServiceCard title={meta.title} />
+              )}
             </ServiceAuthBoundary>
           </ServiceSessionProvider>
         )}

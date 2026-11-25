@@ -5,6 +5,10 @@ import App from './App'
 const mockStorage = new Map<string, string>()
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+jest.mock('./src/conversations/cache', () => ({
+  createMobileConversationCache: () => undefined,
+}))
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
@@ -23,7 +27,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 describe('Independent service auth', () => {
   it('keeps messaging, account and local CRM sessions independent', async () => {
     mockStorage.clear()
-    const { getByLabelText, getByText } = await render(<App />)
+    const { getByLabelText, getAllByText, getByText, queryByText } = await render(<App />)
     await act(async () => {})
 
     expect(getByText('CRM محلی')).toBeTruthy()
@@ -35,7 +39,39 @@ describe('Independent service auth', () => {
     await act(async () => {
       fireEvent.press(getByLabelText('اتصال به پیام‌رسان'))
     })
-    await waitFor(() => expect(getByText('پیام‌رسان متصل است')).toBeTruthy())
+    await waitFor(() => expect(getByText('علی محمدی')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('فیلتر خوانده‌نشده'))
+    })
+    await waitFor(() => expect(queryByText('مریم احمدی')).toBeNull())
+    expect(getByText('علی محمدی')).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('فیلتر همه'))
+    })
+    await act(async () => {
+      fireEvent.changeText(getByLabelText('جستجو'), 'موردی وجود ندارد')
+    })
+    await waitFor(() => expect(getByText('گفتگویی پیدا نشد')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.changeText(getByLabelText('جستجو'), '')
+    })
+    await waitFor(() => expect(getByText('علی محمدی')).toBeTruthy())
+    await act(async () => {
+      fireEvent.press(getByLabelText('باز کردن گفتگو علی محمدی'))
+    })
+    await waitFor(() => expect(getByText('صفحه گفتگو')).toBeTruthy())
+    await act(async () => {
+      fireEvent.press(getByLabelText('بازگشت به گفتگوها'))
+    })
+    await waitFor(() => expect(getByText('علی محمدی')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('اتصال Real-Time'))
+    })
+    await waitFor(() => expect(getAllByText('اتصال Real-Time').length).toBeGreaterThan(0))
 
     await act(async () => {
       fireEvent.press(getByLabelText('مدیریت حساب'))
@@ -49,7 +85,7 @@ describe('Independent service auth', () => {
     await act(async () => {
       fireEvent.press(getByLabelText('پیام‌رسان'))
     })
-    await waitFor(() => expect(getByText('پیام‌رسان متصل است')).toBeTruthy())
+    await waitFor(() => expect(getByText('علی محمدی')).toBeTruthy())
 
     await act(async () => {
       fireEvent.press(getByLabelText('سوپرآپ'))

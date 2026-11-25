@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./mocks": "./mocks/index.mjs"
   },
+  "dependencies": {
+    "@superapp/chat-contracts": "0.1.0"
+  },
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test": "node --test mocks/index.test.mjs"
   }
 }

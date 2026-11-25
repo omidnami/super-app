@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۶**
+- تمام‌شده: **۹**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۱۶**
-- درصد پیشرفت: **۲۷٫۳٪**
+- باقی‌مانده: **۱۳**
+- درصد پیشرفت: **۴۰٫۹٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -69,9 +69,9 @@
 | STEP-03 | Design Tokens، تم و رنگ قابل‌تنظیم | STEP-02 | UI | ۱ روز | [x] |
 | STEP-04 | UI Kit و App Shell | STEP-03 | UI | ۱–۲ روز | [x] |
 | STEP-05 | Mock Auth مستقل سرویس‌ها و Session Boundaries | STEP-02 | Auth | ۱ روز | [x] |
-| STEP-06 | Hub Client و مدیریت اتصال | STEP-05 + STEP-B01 | Chat | ۱–۲ روز | [ ] |
-| STEP-07 | SQLite، Repository و Sync Core | STEP-01 + STEP-B02 | Chat / Offline | ۱–۲ روز | [ ] |
-| STEP-08 | صف گفتگوها و فیلترها | STEP-04 + STEP-06 | Chat | ۱ روز | [ ] |
+| STEP-06 | Hub Client و مدیریت اتصال | STEP-05 + STEP-B01 | Chat | ۱–۲ روز | [x] |
+| STEP-07 | SQLite، Repository و Sync Core | STEP-01 + STEP-B02 | Chat / Offline | ۱–۲ روز | [x] |
+| STEP-08 | صف گفتگوها و فیلترها | STEP-04 + STEP-06 | Chat | ۱ روز | [x] |
 | STEP-09 | صفحه چت، متن، ایموجی و Real-Time | STEP-07 + STEP-08 | Chat | ۱–۲ روز | [ ] |
 | STEP-10 | فایل، ویس و رسانه | STEP-09 + STEP-B03 | Chat / Media | ۱–۲ روز | [ ] |
 | STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [ ] |
@@ -491,7 +491,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-05 + STEP-B01
 **خروجی:** Connection Manager مقاوم با Ticket و reconnect
 
-- [ ] **STEP-06 تمام شد**
+- [x] **STEP-06 تمام شد**
 
 ### پرامپت اجرا
 
@@ -528,7 +528,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-01 + STEP-B02
 **خروجی:** دیتابیس محلی، Migration و موتور سینک پایه
 
-- [ ] **STEP-07 تمام شد**
+- [x] **STEP-07 تمام شد**
 
 ### پرامپت اجرا
 
@@ -566,7 +566,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-04 + STEP-06
 **خروجی:** Inbox قابل‌استفاده با فیلتر و Pagination
 
-- [ ] **STEP-08 تمام شد**
+- [x] **STEP-08 تمام شد**
 
 ### پرامپت اجرا
 
@@ -974,6 +974,9 @@ Blockerها:
 | 2026-11-24 | STEP-03 | Done | lint، typecheck، format:check و ۱۹ تست (۱۱ Package + ۷ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | Design Tokenها، Theme Provider مشترک، سیستم/روشن/تاریک، Preset و رنگ سفارشی، ذخیره تنظیمات، کنترل کنتراست و Gallery در هر دو اپ آماده‌اند؛ مستند در `docs/theme-system.md`؛ استپ بعدی STEP-04 |
 | 2026-11-25 | STEP-04 | Done | lint، typecheck، format:check و ۱۹ تست (۱۱ Package + ۷ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | UI Kit موبایل/PWA، فرم‌ها، بازخورد، لیست‌ها، Overlayها، App Shell، Navigation سه‌دکمه‌ای، رنگ مستقل مینی‌اپ‌ها و Service Auth Boundary آماده‌اند؛ مستند در `docs/ui-kit.md`؛ استپ بعدی STEP-05 |
 | 2026-11-25 | STEP-05 | Done | lint، typecheck، format:check و ۲۴ تست (۱۱ Package + ۱۲ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/auth`، Mock Adapter، Session مستقل پیام‌رسان/مدیریت حساب، Connect/Disconnect/Expire، Storage جداگانه و دسترسی CRM بدون Auth آماده‌اند؛ مستند در `docs/service-auth.md`؛ استپ بعدی STEP-06 |
+| 2026-11-25 | STEP-06 | Done | lint، typecheck، format:check و ۲۹ تست (۱۱ Package + ۱۷ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/hub-client`، Ticket Adapter، Socket.IO Transport، Reconnect، Refresh Ticket، Buffer رویدادها و Demo اتصال آماده‌اند؛ مستند در `docs/hub-client.md`؛ استپ بعدی STEP-07 |
+| 2026-11-25 | STEP-07 | Done | lint، typecheck، format:check و ۳۶ تست (۱۱ Package + ۲۴ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | پکیج `@superapp/local-db`، Schema و Migration، Repositoryهای typed، Upsert اتمیک، Tombstone، Cursor و Sync Engine آماده‌اند؛ مستند در `docs/local-db.md`؛ استپ بعدی STEP-08 |
+| 2026-11-25 | STEP-08 | Done | lint، typecheck، format:check و ۴۷ تست (۱۱ Package + ۳۵ PWA + ۱ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | صف گفتگوها، جستجو، فیلترهای سطح/وضعیت/کانال/اپراتور/خوانده‌نشده، Pagination، Refresh، Cache آفلاین موبایل، Adapter واقعی Planet و مسیر گفتگو آماده‌اند؛ مستند در `docs/conversation-inbox.md`؛ استپ بعدی STEP-09 |
 
 ---
 
@@ -1005,9 +1008,9 @@ Blockerها:
 - [x] تم و رنگ قابل‌تنظیم آماده است.
 - [x] UI Kit و Navigation سه‌دکمه‌ای با محیط و رنگ مستقل مینی‌اپ‌ها آماده است.
 - [x] Auth و Session مستقل هر سرویس با Mock آماده است.
-- [ ] Hub Client مقاوم آماده است.
-- [ ] SQLite و Sync Core آماده است.
-- [ ] صف گفتگوها آماده است.
+- [x] Hub Client مقاوم آماده است.
+- [x] SQLite و Sync Core آماده است.
+- [x] صف گفتگوها آماده است.
 - [ ] چت متنی Real-Time آماده است.
 - [ ] فایل و ویس آماده است.
 - [ ] تاریخچه آفلاین آماده است.
@@ -1034,3 +1037,6 @@ Blockerها:
 | 1.6 | 2026-11-24 | تکمیل STEP-03، پیاده‌سازی Design Tokenها، Theme Provider، تم سیستم/دستی، رنگ سفارشی، کنتراست، Gallery و ۱۹ تست موفق |
 | 1.7 | 2026-11-25 | تکمیل STEP-04، ایجاد UI Kit موبایل/PWA، App Shell، Navigation سه‌دکمه‌ای، Gallery و مرز Auth سرویس |
 | 1.8 | 2026-11-25 | تکمیل STEP-05، ایجاد پکیج Auth، Mock Adapter، Session مستقل سرویس‌ها، Connect/Disconnect/Expire و دسترسی CRM بدون Auth |
+| 1.9 | 2026-11-25 | تکمیل STEP-06، ایجاد Hub Client، Ticket Adapter، Socket.IO Transport، Reconnect، Refresh Ticket و Buffer رویدادها |
+| 1.10 | 2026-11-25 | تکمیل STEP-07، ایجاد SQLite، Migration، Repositoryها، Sync Engine، Tombstone و تست‌های اتمیک |
+| 1.11 | 2026-11-25 | تکمیل STEP-08، ایجاد صف گفتگوها، فیلترها، Pagination، Adapter Planet، Cache آفلاین موبایل و مسیر گفتگو |

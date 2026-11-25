@@ -175,7 +175,7 @@ export function MiniAppShell({
         {navigation}
         <View style={styles.shellContent}>
           <MiniAppHeader module={module} title={title} subtitle={subtitle} trailing={trailing} />
-          <View style={{ padding: tokens.spacing.lg, paddingBottom: 88 }}>{children}</View>
+          <View style={{ flex: 1, padding: tokens.spacing.lg, paddingBottom: 88 }}>{children}</View>
         </View>
       </View>
     </View>

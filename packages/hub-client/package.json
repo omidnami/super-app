@@ -1,0 +1,20 @@
+{
+  "name": "@superapp/hub-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@superapp/auth": "0.1.0",
+    "@superapp/chat-contracts": "0.1.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

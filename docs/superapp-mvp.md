@@ -657,6 +657,9 @@ apps/
 
 packages/
   auth/
+  conversation-inbox/
+  hub-client/
+  local-db/
   ui/
   design-tokens/
   domain/
@@ -680,6 +683,7 @@ features/
 
 - `api-client`: ارتباط با Planet و Hub
 - `repositories`: منطق خواندن، نوشتن و کش
+- `conversation-inbox`: Query Hook، فیلتر، Pagination و Fallback آفلاین صف گفتگوها
 - `query-hooks`: State های مربوط به داده سرور
 - `local-db`: schema و migration های SQLite
 - `sync-engine`: دریافت Delta، ادغام Backlog و مدیریت cursor

@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@superapp/auth": "0.1.0",
+    "@superapp/chat-contracts": "0.1.0",
+    "@superapp/conversation-inbox": "0.1.0",
     "@superapp/design-tokens": "0.1.0",
     "@superapp/domain": "0.1.0",
     "@superapp/theme": "0.1.0"

@@ -448,6 +448,132 @@
   font-size: 11px;
 }
 
+.inbox {
+  display: grid;
+  width: 100%;
+}
+
+.inbox-header,
+.inbox-heading,
+.inbox-item-top,
+.inbox-item-title,
+.inbox-item-footer,
+.inbox-badges,
+.inbox-assignee {
+  display: flex;
+  align-items: center;
+}
+
+.inbox-header {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inbox-heading {
+  flex: 1;
+  gap: 8px;
+}
+
+.inbox-heading h2,
+.inbox-route-summary h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.inbox-heading > span,
+.inbox-item-title > span,
+.inbox-assignee > span {
+  font-size: 12px;
+}
+
+.inbox-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+.inbox-selects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inbox-item-wrapper {
+  margin-bottom: 8px;
+}
+
+.inbox-item-top {
+  gap: 12px;
+}
+
+.inbox-item-content {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.inbox-item-title {
+  gap: 8px;
+}
+
+.inbox-item-title strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+.inbox-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.inbox-item-footer {
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top-width: 1px;
+  border-top-style: solid;
+}
+
+.inbox-badges,
+.inbox-assignee {
+  gap: 6px;
+}
+
+.inbox-assignee {
+  max-width: 130px;
+  min-width: 0;
+}
+
+.inbox-assignee > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-loading,
+.inbox-skeleton,
+.inbox-route-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.inbox-route-summary {
+  justify-items: start;
+}
+
+.inbox-route-summary p {
+  margin: 0;
+}
+
 @keyframes ui-spin {
   to {
     transform: rotate(360deg);
@@ -466,5 +592,16 @@
   }
   .ui-shell-body {
     padding-bottom: 92px;
+  }
+}
+
+@media (max-width: 640px) {
+  .inbox-selects {
+    grid-template-columns: 1fr;
+  }
+
+  .inbox-item-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
