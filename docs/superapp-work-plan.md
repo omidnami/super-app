@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۱۳**
+- تمام‌شده: **۱۴**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۹**
-- درصد پیشرفت: **۵۹٫۱٪**
+- باقی‌مانده: **۸**
+- درصد پیشرفت: **۶۳٫۶٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -76,7 +76,7 @@
 | STEP-10 | فایل، ویس و رسانه | STEP-09 + STEP-B03 | Chat / Media | ۱–۲ روز | [x] |
 | STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [x] |
 | STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [x] |
-| STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
+| STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [x] |
 | STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
 | STEP-15 | CRM کاملاً محلی | STEP-03 + STEP-04 | CRM | ۱–۲ روز | [ ] |
 | STEP-16 | PWA آنلاین | STEP-04 + STEP-05 + APIها | PWA | ۱–۲ روز | [ ] |
@@ -741,7 +741,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-03 + STEP-04 + STEP-07
 **خروجی:** داشبورد، لیست و جزئیات فروشگاه آنلاین/آفلاین
 
-- [ ] **STEP-13 تمام شد**
+- [x] **STEP-13 تمام شد**
 
 ### پرامپت اجرا
 
@@ -981,6 +981,7 @@ Blockerها:
 | 2026-11-25 | STEP-10 | Done | lint، typecheck، format:check و ۱۲۹ تست (۱۱ Package + ۱۱۴ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AttachmentPicker، UploadProgress، FileBubble، VoiceRecorder/Player، آپلود و دریافت امن Planet، اعتبارسنجی نوع/حجم، Voice فقط بله، Cancel/Retry و حالت آفلاین رسانه آماده‌اند؛ مستند در `docs/media.md`؛ استپ بعدی STEP-11 |
 | 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۵۴ تست (۱۱ Package + ۱۳۹ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
 | 2026-11-26 | STEP-12 | Done | lint، typecheck، format:check و ۱۶۲ تست (۱۱ Package + ۱۴۷ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AssignmentSheet، EscalationSheet، ConversationStatusSheet، APIهای Planet، بررسی نقش/سطح، Optimistic Update، Rollback و مدیریت 403/409 آماده‌اند؛ مستند در `docs/conversation-actions.md`؛ استپ بعدی STEP-13 |
+| 2026-11-26 | STEP-13 | Done | lint، typecheck، format:check و ۱۹۳ تست (۱۱ Package + ۱۷۴ PWA + ۸ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | داشبورد، سفارش‌ها و محصولات فقط‌خواندنی، APIهای Planet، Cache آفلاین موبایل، Search/Filter/Pagination آنلاین و آفلاین، جزئیات، Stale Data، ابطال درخواست با تغییر Scope و پاک‌سازی Cache هنگام Logout آماده‌اند؛ مستند در `docs/shop.md`؛ استپ بعدی STEP-14 |
 
 ---
 
@@ -1019,7 +1020,7 @@ Blockerها:
 - [x] فایل و ویس آماده است.
 - [x] تاریخچه آفلاین آماده است.
 - [x] سطوح پشتیبانی و تخصیص آماده است.
-- [ ] فروشگاه فقط‌خواندنی آماده است.
+- [x] فروشگاه فقط‌خواندنی آماده است.
 - [ ] حسابداری فقط‌خواندنی آماده است.
 - [ ] CRM محلی آماده است.
 - [ ] PWA آنلاین آماده است.
@@ -1059,3 +1060,4 @@ Blockerها:
 | 1.24 | 2026-11-25 | جلوگیری از Advance Cursor هنگام شکست ذخیره Buffer و افزودن تست خطای دیسک |
 | 1.25 | 2026-11-25 | حفظ رویدادهای ذخیره‌نشده در صف Retry تا Commit موفق بعدی |
 | 1.26 | 2026-11-26 | تکمیل STEP-12، افزودن تخصیص، ارجاع، بستن/بازکردن، بررسی مجوز و Optimistic Update گفتگو |
+| 1.27 | 2026-11-26 | تکمیل STEP-13، افزودن داشبورد و لیست/جزئیات فقط‌خواندنی فروشگاه با Cache آفلاین |

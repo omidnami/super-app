@@ -1,4 +1,5 @@
 export * from './conversations'
+export * from './shop'
 export {
   createMockMediaApi,
   createPlanetMediaApi,

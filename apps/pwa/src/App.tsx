@@ -5,6 +5,7 @@ import { AppShell, Card, Tabs } from '@superapp/ui/web'
 import { pwaAuthStorage } from './auth/storage'
 import { AuthDemo } from './components/AuthDemo'
 import { MessagingHub } from './components/HubDemo'
+import { AccountShop } from './components/ShopDemo'
 import { AppThemeProvider } from './theme/AppThemeProvider'
 import { ThemeGallery } from './components/ThemeGallery'
 import { UiKitGallery } from './components/UiKitGallery'
@@ -25,15 +26,6 @@ function CrmLocalPreview() {
         بدون اتصال به اینترنت و بدون Auth هیچ سرویس قابل‌استفاده است. قفل محلی در فاز بعدی اضافه
         می‌شود.
       </p>
-    </Card>
-  )
-}
-
-function ConnectedServiceCard({ title }: { title: string }) {
-  return (
-    <Card>
-      <h2>{title} متصل است</h2>
-      <p>Session این سرویس مستقل از سرویس‌های دیگر است.</p>
     </Card>
   )
 }
@@ -73,11 +65,7 @@ export default function App() {
             adapter={authAdapter}
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
-              {activeModule === 'messaging' ? (
-                <MessagingHub />
-              ) : (
-                <ConnectedServiceCard title={meta.title} />
-              )}
+              {activeModule === 'messaging' ? <MessagingHub /> : <AccountShop />}
             </ServiceAuthBoundary>
           </ServiceSessionProvider>
         )}

@@ -9,6 +9,7 @@
     "./migrations": "./src/migrations.ts",
     "./migrate": "./src/migrate.ts",
     "./repositories": "./src/repositories.ts",
+    "./shop-repository": "./src/shop-repository.ts",
     "./sync-engine": "./src/sync-engine.ts"
   },
   "dependencies": {

@@ -104,6 +104,9 @@ export function SyncStatusBar({ status, lastSyncedAt, onPress }: SyncStatusBarPr
     idle: 'آماده سینک',
     syncing: 'در حال سینک...',
     success: lastSyncedAt ? `آخرین سینک: ${formatPersianDateTime(lastSyncedAt)}` : 'همگام شد',
+    stale: lastSyncedAt
+      ? `داده قدیمی · آخرین سینک: ${formatPersianDateTime(lastSyncedAt)}`
+      : 'داده قدیمی',
     error: 'سینک ناموفق',
   }[status]
   const color =
@@ -111,7 +114,9 @@ export function SyncStatusBar({ status, lastSyncedAt, onPress }: SyncStatusBarPr
       ? tokens.color.danger
       : status === 'success'
         ? tokens.color.success
-        : tokens.color.info
+        : status === 'stale'
+          ? tokens.color.warning
+          : tokens.color.info
   return (
     <button
       type="button"

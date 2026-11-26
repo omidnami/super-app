@@ -189,7 +189,7 @@ export interface OfflineBannerProps {
 }
 
 export interface SyncStatusBarProps {
-  status: 'idle' | 'syncing' | 'success' | 'error'
+  status: 'idle' | 'syncing' | 'success' | 'stale' | 'error'
   lastSyncedAt?: string
   onPress?: () => void
 }

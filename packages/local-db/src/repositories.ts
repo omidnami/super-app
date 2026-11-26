@@ -543,21 +543,35 @@ export class OrderRepository {
     )
   }
 
+  async get(ownerId: string, id: string) {
+    const row = await this.database.get<OrderRow>(
+      'SELECT * FROM cached_orders WHERE owner_id = ? AND server_id = ? AND deleted_at IS NULL',
+      [ownerId, id],
+    )
+    return row ? toOrder(row) : null
+  }
+
   async list(
     ownerId: string,
-    options: { cursor?: string; limit?: number; status?: Order['status'] } = {},
+    options: { cursor?: string; limit?: number; status?: Order['status']; search?: string } = {},
   ) {
     const limit = Math.min(Math.max(options.limit || 30, 1), 100)
     const offset = parseOffset(options.cursor)
+    const conditions = ['owner_id = ?', 'deleted_at IS NULL']
     const params: SqlValue[] = [ownerId]
-    let statusCondition = ''
     if (options.status) {
-      statusCondition = 'AND status = ?'
+      conditions.push('status = ?')
       params.push(options.status)
+    }
+    const search = options.search?.trim()
+    if (search) {
+      conditions.push("(code LIKE ? ESCAPE '\\' OR customer_name LIKE ? ESCAPE '\\')")
+      const pattern = `%${escapeLike(search)}%`
+      params.push(pattern, pattern)
     }
     params.push(limit + 1, offset)
     const rows = await this.database.all<OrderRow>(
-      `SELECT * FROM cached_orders WHERE owner_id = ? AND deleted_at IS NULL ${statusCondition} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM cached_orders WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC, server_id DESC LIMIT ? OFFSET ?`,
       params,
     )
     const hasMore = rows.length > limit
@@ -610,19 +624,35 @@ export class ProductRepository {
     )
   }
 
-  async list(ownerId: string, options: { cursor?: string; limit?: number; search?: string } = {}) {
+  async get(ownerId: string, id: string) {
+    const row = await this.database.get<ProductRow>(
+      'SELECT * FROM cached_products WHERE owner_id = ? AND server_id = ? AND deleted_at IS NULL',
+      [ownerId, id],
+    )
+    return row ? toProduct(row) : null
+  }
+
+  async list(
+    ownerId: string,
+    options: { cursor?: string; limit?: number; search?: string; status?: Product['status'] } = {},
+  ) {
     const limit = Math.min(Math.max(options.limit || 30, 1), 100)
     const offset = parseOffset(options.cursor)
+    const conditions = ['owner_id = ?', 'deleted_at IS NULL']
     const params: SqlValue[] = [ownerId]
-    let searchCondition = ''
-    if (options.search) {
-      searchCondition = 'AND (title LIKE ? OR slug LIKE ?)'
-      const search = `%${options.search}%`
-      params.push(search, search)
+    if (options.status) {
+      conditions.push('status = ?')
+      params.push(options.status)
+    }
+    const search = options.search?.trim()
+    if (search) {
+      conditions.push("(title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\')")
+      const pattern = `%${escapeLike(search)}%`
+      params.push(pattern, pattern)
     }
     params.push(limit + 1, offset)
     const rows = await this.database.all<ProductRow>(
-      `SELECT * FROM cached_products WHERE owner_id = ? AND deleted_at IS NULL ${searchCondition} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM cached_products WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC, server_id DESC LIMIT ? OFFSET ?`,
       params,
     )
     const hasMore = rows.length > limit

@@ -19,6 +19,7 @@
     "@superapp/design-tokens": "0.1.0",
     "@superapp/domain": "0.1.0",
     "@superapp/hub-client": "0.1.0",
+    "@superapp/shop": "0.1.0",
     "@superapp/storage": "0.1.0",
     "@superapp/theme": "0.1.0",
     "@superapp/ui": "0.1.0",

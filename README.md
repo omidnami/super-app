@@ -16,6 +16,7 @@ packages/
   media/
   hub-client/
   local-db/
+  shop/
   ui/
   design-tokens/
   domain/

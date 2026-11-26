@@ -82,6 +82,40 @@ describe('App shell', () => {
     expect(await screen.findByText('سطح دو · امیر کریمی')).toBeInTheDocument()
   }, 20000)
 
+  it('shows read-only shop dashboard, orders and product details', async () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByLabelText('مدیریت حساب')[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'اتصال به مدیریت حساب' }))
+    expect(await screen.findByText('فروش امروز')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'سفارش‌ها' }))
+    fireEvent.change(screen.getByLabelText('جستجو'), { target: { value: 'TK-1007' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('جستجو')).toHaveValue('TK-1007')
+      expect(screen.queryByRole('button', { name: 'جزئیات سفارش TK-1008' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'جزئیات سفارش TK-1007' })).toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByLabelText('جستجو'), { target: { value: '' } })
+    expect(await screen.findByRole('button', { name: 'جزئیات سفارش TK-1008' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('وضعیت سفارش'), { target: { value: 'processing' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('وضعیت سفارش')).toHaveValue('processing')
+      expect(screen.queryByRole('button', { name: 'جزئیات سفارش TK-1007' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'جزئیات سفارش TK-1008' })).toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByLabelText('وضعیت سفارش'), { target: { value: '' } })
+    expect(await screen.findByRole('button', { name: 'جزئیات سفارش TK-1007' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'جزئیات سفارش TK-1008' }))
+    expect(await screen.findByRole('button', { name: 'بازگشت به فروشگاه' })).toBeInTheDocument()
+    expect(screen.getByText(/هدفون بی‌سیم سونی/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'بازگشت به فروشگاه' }))
+
+    fireEvent.click(screen.getByRole('tab', { name: 'محصولات' }))
+    fireEvent.click(await screen.findByRole('button', { name: /جزئیات محصول هدفون بی‌سیم/ }))
+    expect(await screen.findByText(/XM5-BLK/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'ویرایش محصول' })).not.toBeInTheDocument()
+  }, 20000)
+
   it('renders UI Kit and switches between independent mini apps', async () => {
     render(<App />)
 

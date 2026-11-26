@@ -10,6 +10,8 @@ import { AuthDemo } from './src/components/AuthDemo'
 import { clearConversationCacheForSession } from './src/conversations/cache'
 import { clearMobileMediaCache } from './src/conversations/media-cache'
 import { MessagingHub } from './src/components/HubDemo'
+import { AccountShop } from './src/components/ShopDemo'
+import { clearShopCacheForSession } from './src/shop/cache'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
 import { UiKitGallery } from './src/components/UiKitGallery'
@@ -22,6 +24,10 @@ async function handleMessagingLogout(session: ServiceSession) {
   } finally {
     await clearMobileMediaCache()
   }
+}
+
+async function handleAccountLogout(session: ServiceSession) {
+  await clearShopCacheForSession(session)
 }
 
 const moduleMeta = {
@@ -54,26 +60,6 @@ function CrmLocalPreview() {
   )
 }
 
-function ConnectedServiceCard({ title }: { title: string }) {
-  const { tokens } = useTheme()
-  return (
-    <Card>
-      <Text style={{ ...tokens.typography.title, color: tokens.color.textPrimary }}>
-        {title} متصل است
-      </Text>
-      <Text
-        style={{
-          ...tokens.typography.body,
-          color: tokens.color.textSecondary,
-          marginTop: tokens.spacing.xs,
-        }}
-      >
-        Session این سرویس مستقل از سرویس‌های دیگر است.
-      </Text>
-    </Card>
-  )
-}
-
 function AppContent() {
   const [activeModule, setActiveModule] = useState<keyof typeof moduleMeta>('superapp')
   const [galleryTab, setGalleryTab] = useState('ui')
@@ -93,14 +79,16 @@ function AppContent() {
             service={activeModule}
             storage={mobileAuthStorage}
             adapter={authAdapter}
-            onLogout={activeModule === 'messaging' ? handleMessagingLogout : undefined}
+            onLogout={
+              activeModule === 'messaging'
+                ? handleMessagingLogout
+                : activeModule === 'account'
+                  ? handleAccountLogout
+                  : undefined
+            }
           >
             <ServiceAuthBoundary fallback={<AuthDemo />}>
-              {activeModule === 'messaging' ? (
-                <MessagingHub />
-              ) : (
-                <ConnectedServiceCard title={meta.title} />
-              )}
+              {activeModule === 'messaging' ? <MessagingHub /> : <AccountShop />}
             </ServiceAuthBoundary>
           </ServiceSessionProvider>
         )}
