@@ -6,6 +6,7 @@ export type {
   PendingSnapshotCommit,
 } from './backlog'
 export { useChat } from './useChat'
+export { useConversationActions } from './useConversationActions'
 export {
   createOptimisticMessage,
   generateClientMutationId,
@@ -21,9 +22,13 @@ export type {
   ChatStatus,
   BacklogCache,
   BacklogState,
+  ConversationAction,
+  ConversationActionStatus,
   MessageCache,
   UseChatOptions,
   UseChatResult,
+  UseConversationActionsOptions,
+  UseConversationActionsResult,
 } from './types'
 export type {
   CanonicalMessage,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
-import type { Conversation } from '@superapp/chat-contracts'
+import type { Conversation, OperatorSummary } from '@superapp/chat-contracts'
 import {
   createConversationCacheScope,
   INBOX_PAGE_SIZE,
@@ -129,9 +129,11 @@ function HubDemo() {
 
 function MessagingInbox({
   onOpenConversation,
+  onOperatorsChange,
   cache,
 }: {
   onOpenConversation: (conversation: Conversation) => void
+  onOperatorsChange: (operators: OperatorSummary[]) => void
   cache: ReturnType<typeof createMobileConversationCache> | undefined
 }) {
   const { session } = useServiceSession()
@@ -146,6 +148,10 @@ function MessagingInbox({
     pageSize: INBOX_PAGE_SIZE,
   })
 
+  useEffect(() => {
+    onOperatorsChange(inbox.operators)
+  }, [inbox.operators, onOperatorsChange])
+
   if (!session) return null
   return <ConversationList inbox={inbox} onOpenConversation={onOpenConversation} />
 }
@@ -154,6 +160,7 @@ export function MessagingHub() {
   const { session } = useServiceSession()
   const [activeTab, setActiveTab] = useState('inbox')
   const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [operators, setOperators] = useState<OperatorSummary[]>([])
   const scope = session
     ? createConversationCacheScope(session.context.operatorId, session.context.projectId)
     : ''
@@ -188,10 +195,18 @@ export function MessagingHub() {
             accessToken={session.accessToken}
             cache={cache}
             isOnline={isOnline}
+            operators={operators}
+            permissions={session.context.permissions}
+            operatorLevel={session.context.supportLevel}
+            onConversationChange={setConversation}
             onBack={() => setConversation(null)}
           />
         ) : activeTab === 'inbox' ? (
-          <MessagingInbox onOpenConversation={setConversation} cache={cache} />
+          <MessagingInbox
+            onOpenConversation={setConversation}
+            onOperatorsChange={setOperators}
+            cache={cache}
+          />
         ) : (
           <HubDemo />
         )}

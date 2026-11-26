@@ -24,7 +24,12 @@ function createSession(service: ServiceId, operatorId: string, projectId: string
     refreshToken: `mock_${service}_refresh_${operatorId}_${timestamp}`,
     expiresAt: timestamp + 15 * 60 * 1000,
     service,
-    context: { operatorId, projectId, permissions: permissions[service] },
+    context: {
+      operatorId,
+      projectId,
+      ...(service === 'messaging' ? { supportLevel: 'level_1' as const } : {}),
+      permissions: permissions[service],
+    },
   }
 }
 

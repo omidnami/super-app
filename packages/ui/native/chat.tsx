@@ -15,9 +15,11 @@ import type {
   CanonicalMessage,
   Conversation,
   DeliveryStatus,
+  OperatorSummary,
+  SupportLevel,
 } from '@superapp/chat-contracts'
-import { type MessageCache, useChat } from '@superapp/chat'
-import { conversationTitle } from '@superapp/conversation-inbox'
+import { type MessageCache, useChat, useConversationActions } from '@superapp/chat'
+import { assigneeName, conversationTitle, SUPPORT_LEVEL_LABELS } from '@superapp/conversation-inbox'
 import {
   canSendVoice,
   createMediaCacheKey,
@@ -28,6 +30,13 @@ import {
 import { useTheme } from '@superapp/theme'
 import { Badge, Button } from './primitives'
 import { AttachmentPicker, FileBubble, UploadProgress, VoiceRecorder } from './media'
+import {
+  AssignmentSheet,
+  ConversationActionsBar,
+  ConversationStatusSheet,
+  EscalationSheet,
+} from './conversation-actions'
+import { SupportLevelBadge } from './conversations'
 import { EmptyState, ErrorState, OfflineBanner, Skeleton, SyncStatusBar } from './feedback'
 
 export interface ChatScreenProps {
@@ -39,6 +48,10 @@ export interface ChatScreenProps {
   cache?: MessageCache
   isOnline?: boolean
   sendTimeoutMs?: number
+  operators?: OperatorSummary[]
+  permissions?: string[]
+  operatorLevel?: SupportLevel
+  onConversationChange?: (conversation: Conversation) => void
   onBack: () => void
 }
 
@@ -265,6 +278,10 @@ export function ChatScreen({
   cache,
   isOnline = true,
   sendTimeoutMs,
+  operators = [],
+  permissions = [],
+  operatorLevel,
+  onConversationChange,
   onBack,
 }: ChatScreenProps) {
   const { tokens } = useTheme()
@@ -278,6 +295,15 @@ export function ChatScreen({
     isOnline,
     sendTimeoutMs,
   })
+  const actions = useConversationActions({
+    api,
+    conversation,
+    accessToken,
+    permissions,
+    operatorLevel,
+    onConversationChange,
+  })
+  const [actionSheet, setActionSheet] = useState<'assign' | 'escalate' | 'status' | null>(null)
   const [text, setText] = useState('')
   const [pendingFile, setPendingFile] = useState<MediaFile | null>(null)
   const [readyAttachment, setReadyAttachment] = useState<Attachment | null>(null)
@@ -352,8 +378,10 @@ export function ChatScreen({
             {conversationTitle(conversation)}
           </Text>
           <Text style={{ ...tokens.typography.caption, color: tokens.color.textTertiary }}>
-            {chat.isOffline ? 'آفلاین' : 'آنلاین'}
+            {SUPPORT_LEVEL_LABELS[actions.conversation.support_level]} ·{' '}
+            {assigneeName(actions.conversation)}
           </Text>
+          <SupportLevelBadge level={actions.conversation.support_level} />
         </View>
         <Badge
           label={chat.isOffline ? 'قطع' : 'متصل'}
@@ -365,6 +393,16 @@ export function ChatScreen({
         status={chat.syncStatus}
         lastSyncedAt={chat.lastSyncedAt || undefined}
         onPress={() => void chat.retry()}
+      />
+      <ConversationActionsBar
+        conversation={actions.conversation}
+        canAssign={actions.canAssign}
+        canEscalate={actions.canEscalate}
+        canChangeStatus={actions.canChangeStatus}
+        loading={actions.status === 'saving'}
+        onAssign={() => setActionSheet('assign')}
+        onEscalate={() => setActionSheet('escalate')}
+        onStatusChange={() => setActionSheet('status')}
       />
 
       <ScrollView
@@ -465,6 +503,48 @@ export function ChatScreen({
         disabled={chat.isOffline}
         sending={chat.isSending || upload.status === 'uploading'}
         allowEmpty={Boolean(pendingFile)}
+      />
+
+      <AssignmentSheet
+        key={`assign-${actions.conversation.id}-${actions.conversation.status}-${actions.conversation.assignee?.id || ''}`}
+        visible={actionSheet === 'assign'}
+        conversation={actions.conversation}
+        operators={operators}
+        currentOperatorId={actions.conversation.assignee?.id}
+        loading={actions.status === 'saving'}
+        error={actions.error || undefined}
+        onClose={() => setActionSheet(null)}
+        onAssign={(operatorId) => {
+          void actions.assign(operatorId).then((ok) => {
+            if (ok) setActionSheet(null)
+          })
+        }}
+      />
+      <EscalationSheet
+        key={`escalate-${actions.conversation.id}-${actions.conversation.support_level}`}
+        visible={actionSheet === 'escalate'}
+        conversation={actions.conversation}
+        loading={actions.status === 'saving'}
+        error={actions.error || undefined}
+        onClose={() => setActionSheet(null)}
+        onEscalate={(level, reason) => {
+          void actions.escalate(level, reason).then((ok) => {
+            if (ok) setActionSheet(null)
+          })
+        }}
+      />
+      <ConversationStatusSheet
+        key={`status-${actions.conversation.id}-${actions.conversation.status}`}
+        visible={actionSheet === 'status'}
+        conversation={actions.conversation}
+        loading={actions.status === 'saving'}
+        error={actions.error || undefined}
+        onClose={() => setActionSheet(null)}
+        onStatusChange={(status) => {
+          void actions.setStatus(status).then((ok) => {
+            if (ok) setActionSheet(null)
+          })
+        }}
       />
     </KeyboardAvoidingView>
   )

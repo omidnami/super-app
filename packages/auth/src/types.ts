@@ -6,6 +6,7 @@ export type AuthStatus = 'disconnected' | 'connecting' | 'connected' | 'expired'
 export interface ServiceAuthContext {
   operatorId: string
   projectId: string
+  supportLevel?: 'level_1' | 'level_2' | 'level_3'
   permissions: string[]
 }
 

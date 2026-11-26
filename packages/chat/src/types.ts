@@ -4,9 +4,11 @@ import type {
   CanonicalMessage,
   SyncChange,
   Conversation,
+  ConversationStatus,
   DeliveryStatus,
   MessageListQuery,
   Paginated,
+  SupportLevel,
 } from '@superapp/chat-contracts'
 
 export type ChatStatus = 'loading' | 'ready' | 'error'
@@ -98,3 +100,29 @@ export interface UseChatResult {
 }
 
 export type ChatController = UseChatResult
+
+export type ConversationAction = 'assign' | 'escalate' | 'status'
+export type ConversationActionStatus = 'idle' | 'saving' | 'success' | 'error'
+
+export interface UseConversationActionsOptions {
+  api: ConversationApi
+  conversation: Conversation
+  accessToken?: string
+  permissions?: string[]
+  operatorLevel?: SupportLevel
+  onConversationChange?: (conversation: Conversation) => void
+}
+
+export interface UseConversationActionsResult {
+  conversation: Conversation
+  activeAction: ConversationAction | null
+  status: ConversationActionStatus
+  error: string | null
+  canAssign: boolean
+  canEscalate: boolean
+  canChangeStatus: boolean
+  assign: (operatorId: string) => Promise<boolean>
+  escalate: (level: SupportLevel, reason?: string) => Promise<boolean>
+  setStatus: (status: ConversationStatus) => Promise<boolean>
+  clearError: () => void
+}

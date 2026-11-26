@@ -1,13 +1,18 @@
 import type {
+  AssignConversationRequest,
   CanonicalMessage,
   Conversation,
   ConversationListQuery,
   ConversationPage,
+  ConversationStatus,
+  EscalateConversationRequest,
   MessageListQuery,
   MessagePage,
+  SupportLevel,
   SyncChange,
   SyncQuery,
   SyncResult,
+  UpdateConversationStatusRequest,
 } from '@superapp/chat-contracts'
 import conversationFixtures from '../mocks/fixtures/conversations.json'
 import messageFixtures from '../mocks/fixtures/messages.json'
@@ -24,6 +29,19 @@ export { PlanetApiError } from './media'
 const conversations = conversationFixtures as unknown as Conversation[]
 const messages = messageFixtures as unknown as CanonicalMessage[]
 const syncChanges = syncChangeFixtures as unknown as SyncChange[]
+
+const SUPPORT_LEVEL_RANK: Record<SupportLevel, number> = {
+  level_1: 1,
+  level_2: 2,
+  level_3: 3,
+}
+const CONVERSATION_STATUSES: ConversationStatus[] = [
+  'open',
+  'assigned',
+  'pending_customer',
+  'escalated',
+  'closed',
+]
 
 export interface ConversationRequestContext {
   accessToken?: string
@@ -43,6 +61,21 @@ export interface ConversationApi {
     context?: ConversationRequestContext,
   ): Promise<MessagePage>
   sync?(query: SyncQuery, context?: ConversationRequestContext): Promise<SyncResult>
+  assign?(
+    id: string,
+    request: AssignConversationRequest,
+    context?: ConversationRequestContext,
+  ): Promise<Conversation>
+  escalate?(
+    id: string,
+    request: EscalateConversationRequest,
+    context?: ConversationRequestContext,
+  ): Promise<Conversation>
+  updateStatus?(
+    id: string,
+    request: UpdateConversationStatusRequest,
+    context?: ConversationRequestContext,
+  ): Promise<Conversation>
 }
 
 export interface PlanetConversationApiOptions {
@@ -181,11 +214,124 @@ export function createMockConversationApi(): ConversationApi {
         has_more: false,
       }
     },
+
+    async assign(id, request, context) {
+      const conversation = findMockConversationForAction(id, context)
+      if (
+        !isRecord(request) ||
+        typeof request.operator_id !== 'string' ||
+        !request.operator_id.trim()
+      ) {
+        throw mockActionError(422, 'شناسه اپراتور معتبر نیست.')
+      }
+      if (conversation.status === 'closed') {
+        throw mockActionError(409, 'گفتگوی بسته شده قابل تخصیص نیست.')
+      }
+      const operatorId = request.operator_id.trim()
+      const knownOperator = conversations.find((item) => item.assignee?.id === operatorId)?.assignee
+      Object.assign(conversation, {
+        assignee: {
+          id: operatorId,
+          name:
+            conversation.assignee?.id === operatorId
+              ? conversation.assignee.name
+              : knownOperator?.name || operatorId,
+        },
+        status: 'assigned',
+        updated_at: new Date().toISOString(),
+      })
+      return copyMockConversation(conversation)
+    },
+
+    async escalate(id, request, context) {
+      const conversation = findMockConversationForAction(id, context)
+      if (
+        !isRecord(request) ||
+        !isSupportLevel(request.support_level) ||
+        (request.reason !== undefined && typeof request.reason !== 'string')
+      ) {
+        throw mockActionError(422, 'اطلاعات ارتقای گفتگو معتبر نیست.')
+      }
+      if (
+        conversation.status === 'closed' ||
+        SUPPORT_LEVEL_RANK[request.support_level] <= SUPPORT_LEVEL_RANK[conversation.support_level]
+      ) {
+        throw mockActionError(409, 'ارتقا فقط به سطح بالاتر و برای گفتگوی باز مجاز است.')
+      }
+      Object.assign(conversation, {
+        support_level: request.support_level,
+        status: 'escalated',
+        updated_at: new Date().toISOString(),
+      })
+      return copyMockConversation(conversation)
+    },
+
+    async updateStatus(id, request, context) {
+      const conversation = findMockConversationForAction(id, context)
+      if (!isRecord(request) || !isConversationStatus(request.status)) {
+        throw mockActionError(422, 'وضعیت گفتگو معتبر نیست.')
+      }
+      if (
+        request.status === conversation.status ||
+        (conversation.status === 'closed' && request.status !== 'open')
+      ) {
+        throw mockActionError(409, 'تغییر وضعیت با وضعیت فعلی گفتگو سازگار نیست.')
+      }
+      Object.assign(conversation, {
+        status: request.status,
+        updated_at: new Date().toISOString(),
+      })
+      return copyMockConversation(conversation)
+    },
   }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isAbortError(error: unknown) {
+  return (
+    typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
+  )
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (!signal?.aborted) return
+  if (signal.reason !== undefined) throw signal.reason
+  const error = new Error('The operation was aborted.')
+  error.name = 'AbortError'
+  throw error
+}
+
+function isSupportLevel(value: unknown): value is SupportLevel {
+  return typeof value === 'string' && value in SUPPORT_LEVEL_RANK
+}
+
+function isConversationStatus(value: unknown): value is ConversationStatus {
+  return typeof value === 'string' && CONVERSATION_STATUSES.includes(value as ConversationStatus)
+}
+
+function mockActionError(status: number, message: string): PlanetApiError {
+  return new PlanetApiError(message, status)
+}
+
+function findMockConversationForAction(
+  id: string,
+  context: ConversationRequestContext = {},
+): Conversation {
+  throwIfAborted(context.signal)
+  const conversation = conversations.find((item) => item.id === id && !item.deleted_at)
+  if (!conversation) throw mockActionError(404, 'گفتگو پیدا نشد.')
+  return conversation
+}
+
+function copyMockConversation(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    customer: { ...conversation.customer },
+    assignee: conversation.assignee ? { ...conversation.assignee } : null,
+  }
 }
 
 function isNullableString(value: unknown): value is string | null {
@@ -357,6 +503,48 @@ export function createPlanetConversationApi({
     return payload.data as T
   }
 
+  async function postConversation(
+    id: string,
+    action: 'assign' | 'escalate' | 'status',
+    body: object,
+    context: ConversationRequestContext = {},
+  ): Promise<Conversation> {
+    throwIfAborted(context.signal)
+    const accessToken = context.accessToken || (await getAccessToken?.())
+    throwIfAborted(context.signal)
+    const headers = new Headers({ Accept: 'application/json', 'Content-Type': 'application/json' })
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+    const response = await fetchImpl(
+      new URL(`${root}/api/v1/chat/conversations/${encodeURIComponent(id)}/${action}`),
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: context.signal,
+      },
+    )
+    throwIfAborted(context.signal)
+    if (!response.ok) {
+      throw new PlanetApiError('انجام عملیات روی گفتگو ناموفق بود.', response.status)
+    }
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch (error) {
+      throwIfAborted(context.signal)
+      if (isAbortError(error)) throw error
+      throw new PlanetApiError('پاسخ Planet معتبر نیست.', response.status)
+    }
+    throwIfAborted(context.signal)
+    if (!isRecord(payload) || payload.status !== true || !('data' in payload)) {
+      throw new PlanetApiError('پاسخ Planet معتبر نیست.', response.status)
+    }
+    if (!isConversation(payload.data) || payload.data.id !== id) {
+      throw new PlanetApiError('پاسخ عملیات گفتگو معتبر نیست.', response.status)
+    }
+    return payload.data
+  }
+
   return {
     media: createPlanetMediaApi({ baseUrl, getAccessToken, fetch: fetchImpl }),
     async list(query = {}, context) {
@@ -386,6 +574,15 @@ export function createPlanetConversationApi({
         throw new PlanetApiError('پاسخ همگام‌سازی Planet معتبر نیست.', 200)
       }
       return result
+    },
+    assign(id, request, context) {
+      return postConversation(id, 'assign', request, context)
+    },
+    escalate(id, request, context) {
+      return postConversation(id, 'escalate', request, context)
+    },
+    updateStatus(id, request, context) {
+      return postConversation(id, 'status', request, context)
     },
   }
 }

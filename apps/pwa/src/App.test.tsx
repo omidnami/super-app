@@ -52,6 +52,36 @@ describe('App shell', () => {
     expect(await screen.findByRole('heading', { name: 'اتصال Real-Time' })).toBeInTheDocument()
   }, 20000)
 
+  it('assigns, escalates, closes and reopens a conversation through the action sheets', async () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByLabelText('پیام‌رسان')[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'اتصال به پیام‌رسان' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'باز کردن گفتگو علی محمدی' }, { timeout: 5000 }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'تغییر وضعیت' }))
+    let dialog = await screen.findByRole('dialog', { name: 'تغییر وضعیت گفتگو' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'بسته' }))
+    expect(await screen.findByRole('button', { name: 'باز کردن گفتگو' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'باز کردن گفتگو' }))
+    dialog = await screen.findByRole('dialog', { name: 'تغییر وضعیت گفتگو' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'باز کردن مجدد گفتگو' }))
+    expect(await screen.findByRole('button', { name: 'تغییر وضعیت' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'تغییر اپراتور' }))
+    dialog = await screen.findByRole('dialog', { name: 'تخصیص اپراتور' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'انتخاب اپراتور امیر کریمی' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'واگذاری گفتگو' }))
+    expect(await screen.findByText('سطح یک · امیر کریمی')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ارجاع' }))
+    dialog = await screen.findByRole('dialog', { name: 'ارجاع گفتگو' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'ارجاع' }))
+    expect(await screen.findByText('سطح دو · امیر کریمی')).toBeInTheDocument()
+  }, 20000)
+
   it('renders UI Kit and switches between independent mini apps', async () => {
     render(<App />)
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Conversation } from '@superapp/chat-contracts'
+import type { Conversation, OperatorSummary } from '@superapp/chat-contracts'
 import {
   createConversationCacheScope,
   INBOX_PAGE_SIZE,
@@ -110,8 +110,10 @@ function HubDemo() {
 
 function MessagingInbox({
   onOpenConversation,
+  onOperatorsChange,
 }: {
   onOpenConversation: (conversation: Conversation) => void
+  onOperatorsChange: (operators: OperatorSummary[]) => void
 }) {
   const { session } = useServiceSession()
   const inbox = useConversationInbox({
@@ -123,6 +125,10 @@ function MessagingInbox({
     pageSize: INBOX_PAGE_SIZE,
   })
 
+  useEffect(() => {
+    onOperatorsChange(inbox.operators)
+  }, [inbox.operators, onOperatorsChange])
+
   if (!session) return null
   return <ConversationList inbox={inbox} onOpenConversation={onOpenConversation} />
 }
@@ -131,6 +137,7 @@ export function MessagingHub() {
   const { session } = useServiceSession()
   const [activeTab, setActiveTab] = useState('inbox')
   const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [operators, setOperators] = useState<OperatorSummary[]>([])
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine)
@@ -172,10 +179,14 @@ export function MessagingHub() {
             operatorId={session.context.operatorId}
             accessToken={session.accessToken}
             isOnline={isOnline}
+            operators={operators}
+            permissions={session.context.permissions}
+            operatorLevel={session.context.supportLevel}
+            onConversationChange={setConversation}
             onBack={() => setConversation(null)}
           />
         ) : activeTab === 'inbox' ? (
-          <MessagingInbox onOpenConversation={setConversation} />
+          <MessagingInbox onOpenConversation={setConversation} onOperatorsChange={setOperators} />
         ) : (
           <HubDemo />
         )}

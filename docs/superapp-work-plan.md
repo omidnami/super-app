@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۱۲**
+- تمام‌شده: **۱۳**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۱۰**
-- درصد پیشرفت: **۵۴٫۵٪**
+- باقی‌مانده: **۹**
+- درصد پیشرفت: **۵۹٫۱٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -75,7 +75,7 @@
 | STEP-09 | صفحه چت، متن، ایموجی و Real-Time | STEP-07 + STEP-08 | Chat | ۱–۲ روز | [x] |
 | STEP-10 | فایل، ویس و رسانه | STEP-09 + STEP-B03 | Chat / Media | ۱–۲ روز | [x] |
 | STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [x] |
-| STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [ ] |
+| STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [x] |
 | STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
 | STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
 | STEP-15 | CRM کاملاً محلی | STEP-03 + STEP-04 | CRM | ۱–۲ روز | [ ] |
@@ -706,7 +706,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-08 + STEP-09
 **خروجی:** کنترل چندسطحی گفتگو
 
-- [ ] **STEP-12 تمام شد**
+- [x] **STEP-12 تمام شد**
 
 ### پرامپت اجرا
 
@@ -980,6 +980,7 @@ Blockerها:
 | 2026-11-25 | STEP-09 | Done | lint، typecheck، format:check و ۸۸ تست (۱۱ Package + ۷۳ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | ChatScreen، ChatBubble، Composer، EmojiButton، MessageStatus، تاریخچه صفحه‌بندی‌شده، Optimistic Send، ACK Canonical، Dedup، Timeout نامشخص، Cache آفلاین موبایل و تبادل پیام بین دو Client آماده‌اند؛ مستند در `docs/chat.md`؛ استپ بعدی STEP-10 |
 | 2026-11-25 | STEP-10 | Done | lint، typecheck، format:check و ۱۲۹ تست (۱۱ Package + ۱۱۴ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AttachmentPicker، UploadProgress، FileBubble، VoiceRecorder/Player، آپلود و دریافت امن Planet، اعتبارسنجی نوع/حجم، Voice فقط بله، Cancel/Retry و حالت آفلاین رسانه آماده‌اند؛ مستند در `docs/media.md`؛ استپ بعدی STEP-11 |
 | 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۵۴ تست (۱۱ Package + ۱۳۹ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
+| 2026-11-26 | STEP-12 | Done | lint، typecheck، format:check و ۱۶۲ تست (۱۱ Package + ۱۴۷ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AssignmentSheet، EscalationSheet، ConversationStatusSheet، APIهای Planet، بررسی نقش/سطح، Optimistic Update، Rollback و مدیریت 403/409 آماده‌اند؛ مستند در `docs/conversation-actions.md`؛ استپ بعدی STEP-13 |
 
 ---
 
@@ -1017,7 +1018,7 @@ Blockerها:
 - [x] چت متنی Real-Time آماده است.
 - [x] فایل و ویس آماده است.
 - [x] تاریخچه آفلاین آماده است.
-- [ ] سطوح پشتیبانی و تخصیص آماده است.
+- [x] سطوح پشتیبانی و تخصیص آماده است.
 - [ ] فروشگاه فقط‌خواندنی آماده است.
 - [ ] حسابداری فقط‌خواندنی آماده است.
 - [ ] CRM محلی آماده است.
@@ -1057,3 +1058,4 @@ Blockerها:
 | 1.23 | 2026-11-25 | جداسازی ذخیره Buffer از Commit Cursor و ثبت Metadata نسخه پیام‌های History/Cache |
 | 1.24 | 2026-11-25 | جلوگیری از Advance Cursor هنگام شکست ذخیره Buffer و افزودن تست خطای دیسک |
 | 1.25 | 2026-11-25 | حفظ رویدادهای ذخیره‌نشده در صف Retry تا Commit موفق بعدی |
+| 1.26 | 2026-11-26 | تکمیل STEP-12، افزودن تخصیص، ارجاع، بستن/بازکردن، بررسی مجوز و Optimistic Update گفتگو |

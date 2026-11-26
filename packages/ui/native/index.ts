@@ -1,5 +1,6 @@
 export * from './chat'
 export * from './conversations'
+export * from './conversation-actions'
 export * from './primitives'
 export * from './feedback'
 export * from './lists'
