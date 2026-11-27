@@ -1064,6 +1064,114 @@
   }
 }
 
+.accounting-screen,
+.accounting-dashboard,
+.accounting-report,
+.accounting-report-content,
+.accounting-loading,
+.accounting-sync,
+.accounting-filters,
+.accounting-transactions {
+  display: grid;
+  gap: 12px;
+}
+
+.accounting-header,
+.accounting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.accounting-header h2,
+.accounting-detail h2,
+.accounting-detail h3 {
+  margin: 0;
+}
+
+.accounting-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.accounting-filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.accounting-card {
+  display: grid;
+  gap: 12px;
+}
+
+.accounting-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.accounting-detail p {
+  margin: 0;
+}
+
+.accounting-caption {
+  font-size: 12px;
+}
+
+.accounting-item {
+  margin-bottom: 8px;
+}
+
+.accounting-transaction-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.accounting-balances {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.accounting-table-wrap {
+  overflow-x: auto;
+}
+
+.accounting-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.accounting-table caption {
+  text-align: start;
+  font-weight: 700;
+  padding-bottom: 8px;
+}
+
+.accounting-table th,
+.accounting-table td {
+  padding: 10px 8px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  text-align: start;
+}
+
+@media (max-width: 640px) {
+  .accounting-metrics,
+  .accounting-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .accounting-header,
+  .accounting-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .conversation-actions-bar > .ui-button {
   flex: 1 1 120px;
 }

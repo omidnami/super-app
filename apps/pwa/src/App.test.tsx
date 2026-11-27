@@ -116,6 +116,36 @@ describe('App shell', () => {
     expect(screen.queryByRole('button', { name: 'ویرایش محصول' })).not.toBeInTheDocument()
   }, 20000)
 
+  it('shows read-only accounting dashboard, document details and financial report', async () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByLabelText('مدیریت حساب')[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'اتصال به مدیریت حساب' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'حسابداری' }))
+    expect(await screen.findByText('مبلغ قابل دریافت')).toBeInTheDocument()
+    expect(screen.getByText('مانده فعلی')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'اسناد' }))
+    fireEvent.change(screen.getByLabelText('از تاریخ'), { target: { value: '2026-11-24' } })
+    fireEvent.change(screen.getByLabelText('تا تاریخ'), { target: { value: '2026-11-24' } })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'جزئیات سند PAY-2026-0311' }),
+      ).not.toBeInTheDocument(),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'جزئیات سند INV-2026-1108' }))
+    expect(await screen.findByRole('button', { name: 'بازگشت به حسابداری' })).toBeInTheDocument()
+    expect(screen.getByText('فاکتور فروش سفارش TK-1008')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'ویرایش سند' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'بازگشت به حسابداری' }))
+
+    fireEvent.click(screen.getByRole('tab', { name: 'گزارش' }))
+    expect(
+      await screen.findByRole('table', { name: 'گزارش تجمیعی اسناد مالی' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'فاکتور فروش' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'تراکنش INV-2026-1108' })).toBeInTheDocument()
+  }, 20000)
+
   it('renders UI Kit and switches between independent mini apps', async () => {
     render(<App />)
 

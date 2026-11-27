@@ -37,6 +37,8 @@ export interface AccountingDocumentListQuery extends CursorPageQuery {
   search?: string
   type?: AccountingDocumentType
   status?: AccountingDocumentStatus
+  issued_from?: ISODateTime
+  issued_to?: ISODateTime
 }
 
 export type AccountingDocumentPage = Paginated<AccountingDocument>

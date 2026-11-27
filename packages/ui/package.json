@@ -9,6 +9,7 @@
     "./web": "./web/index.ts"
   },
   "dependencies": {
+    "@superapp/accounting": "0.1.0",
     "@superapp/auth": "0.1.0",
     "@superapp/chat": "0.1.0",
     "@superapp/chat-contracts": "0.1.0",

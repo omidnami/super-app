@@ -635,6 +635,8 @@ Mock برای `content` یک Blob شبیه‌سازی‌شده همراه metada
 | GET | `/api/v1/account/accounting/documents` |
 | GET | `/api/v1/account/accounting/documents/{document_id}` |
 
+Queryهای فهرست اسناد: `search`، `type`، `status`، `issued_from`، `issued_to`، `cursor` و `limit` هستند. بازه `issued_from/issued_to` می‌تواند ISO DateTime یا `YYYY-MM-DD` باشد و مرزهای آن inclusive هستند. تاریخ نامعتبر یا بازه معکوس با `422 VALIDATION_ERROR` رد می‌شود.
+
 نمونه سند:
 
 ```json

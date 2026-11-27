@@ -656,6 +656,7 @@ apps/
   pwa/
 
 packages/
+  accounting/
   auth/
   chat/
   conversation-inbox/

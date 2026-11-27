@@ -10,9 +10,11 @@
     "./migrate": "./src/migrate.ts",
     "./repositories": "./src/repositories.ts",
     "./shop-repository": "./src/shop-repository.ts",
+    "./payload-cipher": "./src/payload-cipher.ts",
     "./sync-engine": "./src/sync-engine.ts"
   },
   "dependencies": {
+    "@noble/ciphers": "^1.3.0",
     "@superapp/chat-contracts": "0.1.0",
     "expo-sqlite": "58.0.18"
   },

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@superapp/accounting": "0.1.0",
     "@superapp/auth": "0.1.0",
     "@superapp/api-client": "0.1.0",
     "@superapp/chat": "0.1.0",

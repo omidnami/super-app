@@ -238,4 +238,34 @@ export const MIGRATIONS: Migration[] = [
         ADD COLUMN sync_version INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 4,
+    name: 'encrypt_financial_cache_payloads',
+    sql: `
+      DROP TABLE IF EXISTS cached_accounting_documents;
+
+      CREATE TABLE cached_accounting_documents (
+        owner_id TEXT NOT NULL,
+        server_id TEXT NOT NULL,
+        issued_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        synced_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        PRIMARY KEY (owner_id, server_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_accounting_owner_issued
+        ON cached_accounting_documents (owner_id, issued_at DESC, server_id DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_accounting_owner_expires
+        ON cached_accounting_documents (owner_id, expires_at);
+
+      ALTER TABLE cached_reports ADD COLUMN expires_at TEXT;
+
+      DELETE FROM cached_reports WHERE report_key LIKE 'accounting:%';
+      DELETE FROM sync_state WHERE dataset LIKE 'accounting:%';
+    `,
+  },
 ]

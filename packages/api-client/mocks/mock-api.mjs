@@ -63,6 +63,22 @@ function includesSearch(value, search) {
   return String(value).toLocaleLowerCase('fa').includes(String(search).toLocaleLowerCase('fa'))
 }
 
+function issuedAtBoundary(value, endOfDay) {
+  const trimmed = String(value).trim()
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+  const normalized = dateOnly
+    ? `${trimmed}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`
+    : trimmed
+  const timestamp = Date.parse(normalized)
+  if (
+    !Number.isFinite(timestamp) ||
+    (dateOnly && new Date(timestamp).toISOString().slice(0, 10) !== trimmed)
+  ) {
+    return null
+  }
+  return timestamp
+}
+
 export class MockApi {
   constructor(initialData = mockData) {
     this.data = clone(initialData)
@@ -365,10 +381,28 @@ export class MockApi {
         rows = rows.filter(
           (document) =>
             includesSearch(document.code, query.search) ||
-            includesSearch(document.counterparty_name, query.search),
+            includesSearch(document.counterparty_name, query.search) ||
+            includesSearch(document.description, query.search),
         )
       if (query.type) rows = rows.filter((document) => document.type === query.type)
       if (query.status) rows = rows.filter((document) => document.status === query.status)
+      const issuedFrom = query.issued_from ? issuedAtBoundary(query.issued_from, false) : null
+      const issuedTo = query.issued_to ? issuedAtBoundary(query.issued_to, true) : null
+      if ((query.issued_from && issuedFrom === null) || (query.issued_to && issuedTo === null)) {
+        fail(422, 'VALIDATION_ERROR', 'بازه زمانی حسابداری معتبر نیست.')
+      }
+      if (issuedFrom !== null && issuedTo !== null && issuedFrom > issuedTo) {
+        fail(422, 'VALIDATION_ERROR', 'بازه زمانی حسابداری معتبر نیست.')
+      }
+      if (issuedFrom !== null)
+        rows = rows.filter((document) => Date.parse(document.issued_at) >= issuedFrom)
+      if (issuedTo !== null)
+        rows = rows.filter((document) => Date.parse(document.issued_at) <= issuedTo)
+      rows.sort(
+        (first, second) =>
+          Date.parse(second.issued_at) - Date.parse(first.issued_at) ||
+          second.id.localeCompare(first.id),
+      )
       return success(paginate(rows, query))
     }
     const documentMatch = /^\/api\/v1\/account\/accounting\/documents\/([^/]+)$/.exec(path)

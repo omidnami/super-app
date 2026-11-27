@@ -1,5 +1,6 @@
 import type { CanonicalMessage, Conversation, SyncChange } from '@superapp/chat-contracts'
 import type { LocalDatabase } from './database'
+import type { PayloadCipher } from './payload-cipher'
 import {
   AccountingRepository,
   ConversationRepository,
@@ -15,6 +16,11 @@ export interface ApplySyncResult {
   syncedAt: string
 }
 
+export interface SyncEngineOptions {
+  accountingCipher?: PayloadCipher
+  accountingRetentionDays?: number
+}
+
 export class SyncEngine {
   private readonly conversations: ConversationRepository
   private readonly messages: MessageRepository
@@ -23,12 +29,18 @@ export class SyncEngine {
   private readonly accounting: AccountingRepository
   private readonly syncState: SyncStateRepository
 
-  constructor(private readonly database: LocalDatabase) {
+  constructor(
+    private readonly database: LocalDatabase,
+    private readonly options: SyncEngineOptions = {},
+  ) {
     this.conversations = new ConversationRepository(database)
     this.messages = new MessageRepository(database)
     this.orders = new OrderRepository(database)
     this.products = new ProductRepository(database)
-    this.accounting = new AccountingRepository(database)
+    this.accounting = new AccountingRepository(database, {
+      cipher: options.accountingCipher,
+      retentionDays: options.accountingRetentionDays,
+    })
     this.syncState = new SyncStateRepository(database)
   }
 
@@ -124,9 +136,13 @@ export class SyncEngine {
     syncedAt = new Date().toISOString(),
   ): Promise<ApplySyncResult> {
     return this.database.transaction(async (transaction) => {
-      const accountingRepository = new AccountingRepository(transaction)
+      const accountingRepository = new AccountingRepository(transaction, {
+        cipher: this.options.accountingCipher,
+        retentionDays: this.options.accountingRetentionDays,
+      })
       const syncState = new SyncStateRepository(transaction)
 
+      await accountingRepository.purgeExpired(ownerId)
       for (const document of documents)
         await accountingRepository.upsert(ownerId, document, syncedAt)
 

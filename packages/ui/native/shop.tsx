@@ -36,7 +36,7 @@ export interface ShopScreenProps {
   canRead: boolean
 }
 
-export function MetricCard({ label, value }: { label: string; value: string }) {
+export function MetricCard({ label, value }: { label: string; value: ReactNode }) {
   const { tokens } = useTheme()
   return (
     <Card>

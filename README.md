@@ -10,6 +10,7 @@ apps/
   pwa/      # React + Vite + TypeScript
 
 packages/
+  accounting/
   auth/
   chat/
   conversation-inbox/

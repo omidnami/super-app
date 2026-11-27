@@ -83,7 +83,7 @@ describe('local database and sync core', () => {
   it('runs versioned migrations idempotently', async () => {
     await runMigrations(database)
     const rows = await database.all<{ version: number }>('SELECT version FROM schema_migrations')
-    expect(rows.map((row) => row.version)).toEqual([1, 2, 3])
+    expect(rows.map((row) => row.version)).toEqual([1, 2, 3, 4])
 
     for (const table of ['cached_conversations', 'cached_messages']) {
       const columns = await database.all<{

@@ -1,0 +1,21 @@
+{
+  "total_receivable": { "amount": 4500000, "currency": "IRR" },
+  "total_payable": { "amount": 3200000, "currency": "IRR" },
+  "current_balance": { "amount": 18539000, "currency": "IRR" },
+  "documents_count": 2,
+  "balances": [
+    {
+      "account_id": "accnt_1",
+      "title": "صندوق",
+      "balance": { "amount": 6200000, "currency": "IRR" },
+      "updated_at": "2026-11-24T10:45:00.000Z"
+    },
+    {
+      "account_id": "accnt_2",
+      "title": "بانک",
+      "balance": { "amount": 12339000, "currency": "IRR" },
+      "updated_at": "2026-11-24T10:45:00.000Z"
+    }
+  ],
+  "updated_at": "2026-11-24T10:45:00.000Z"
+}

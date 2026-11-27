@@ -630,6 +630,20 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/AccountingDocumentType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AccountingDocumentStatus'
+        - name: issued_from
+          in: query
+          description: ISO DateTime یا YYYY-MM-DD؛ مرز شروع شامل
+          schema:
+            type: string
+        - name: issued_to
+          in: query
+          description: ISO DateTime یا YYYY-MM-DD؛ مرز پایان شامل
+          schema:
+            type: string
       responses:
         '200':
           description: فهرست اسناد
@@ -637,6 +651,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountingDocumentPageResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /api/v1/account/accounting/documents/{document_id}:
     get:
       tags: [Accounting]

@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۱۴**
+- تمام‌شده: **۱۵**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۸**
-- درصد پیشرفت: **۶۳٫۶٪**
+- باقی‌مانده: **۷**
+- درصد پیشرفت: **۶۸٫۲٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -77,7 +77,7 @@
 | STEP-11 | تاریخچه آفلاین و Backlog Reconciliation | STEP-07 + STEP-09 | Offline | ۱–۲ روز | [x] |
 | STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [x] |
 | STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [x] |
-| STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [ ] |
+| STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [x] |
 | STEP-15 | CRM کاملاً محلی | STEP-03 + STEP-04 | CRM | ۱–۲ روز | [ ] |
 | STEP-16 | PWA آنلاین | STEP-04 + STEP-05 + APIها | PWA | ۱–۲ روز | [ ] |
 | STEP-17 | Hardening امنیت، عملکرد و دسترس‌پذیری | همه ماژول‌ها | QA | ۱–۲ روز | [ ] |
@@ -773,7 +773,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-03 + STEP-04 + STEP-07
 **خروجی:** داشبورد، گزارش و جزئیات حسابداری آنلاین/آفلاین
 
-- [ ] **STEP-14 تمام شد**
+- [x] **STEP-14 تمام شد**
 
 ### پرامپت اجرا
 
@@ -982,6 +982,7 @@ Blockerها:
 | 2026-11-25 | STEP-11 | Done | lint، typecheck، format:check و ۱۵۴ تست (۱۱ Package + ۱۳۹ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | BacklogRepository، Sync API، Cursor per Conversation، Merge اتمیک، Dedup، Tombstone، Full Resync روی 410، StaleDataBadge و آخرین زمان سینک آماده‌اند؛ مستند در `docs/backlog-reconciliation.md`؛ استپ بعدی STEP-12 |
 | 2026-11-26 | STEP-12 | Done | lint، typecheck، format:check و ۱۶۲ تست (۱۱ Package + ۱۴۷ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AssignmentSheet، EscalationSheet، ConversationStatusSheet، APIهای Planet، بررسی نقش/سطح، Optimistic Update، Rollback و مدیریت 403/409 آماده‌اند؛ مستند در `docs/conversation-actions.md`؛ استپ بعدی STEP-13 |
 | 2026-11-26 | STEP-13 | Done | lint، typecheck، format:check و ۱۹۳ تست (۱۱ Package + ۱۷۴ PWA + ۸ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | داشبورد، سفارش‌ها و محصولات فقط‌خواندنی، APIهای Planet، Cache آفلاین موبایل، Search/Filter/Pagination آنلاین و آفلاین، جزئیات، Stale Data، ابطال درخواست با تغییر Scope و پاک‌سازی Cache هنگام Logout آماده‌اند؛ مستند در `docs/shop.md`؛ استپ بعدی STEP-14 |
+| 2026-11-27 | STEP-14 | Done | lint، typecheck، format:check و ۲۶۵ تست (۱۵ Package + ۲۲۵ PWA + ۲۵ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | داشبورد، اسناد، جزئیات، تراکنش‌ها و گزارش تجمیعی فقط‌خواندنی، APIهای Planet، فیلتر بازه زمانی/نوع/وضعیت، Cache آفلاین AES-256-GCM با کلید SecureStore و Retention ۳۰ روزه، Stale Data و پاک‌سازی Cache/کلید هنگام Logout آماده‌اند؛ مستند در `docs/accounting.md`؛ استپ بعدی STEP-15 |
 
 ---
 
@@ -996,7 +997,7 @@ Blockerها:
 | BLK-05 | 2026-11-24 | STEP-B02 / STEP-07 | پیام زنده Hub شناسه canonical ندارد | تیم Planet | Confirmed | نگاشت پیام Hub به `message_id` canonical در Planet |
 | BLK-06 | 2026-11-24 | STEP-B03 / STEP-10 | API موبایل Attachment/File و Voice آماده نیست؛ MVP با Mock پیش می‌رود | تیم Planet / Hub | Deferred / Mock in MVP | API Token-based، Attachment ID و مسیر Voice کانال‌ها برای Production |
 | BLK-07 | 2026-11-24 | STEP-18 | Toolchain Build Native آماده نیست | تیم Release | Open | نصب Android Toolchain یا استفاده از EAS؛ iOS با macOS/EAS |
-| BLK-08 | 2026-11-24 | STEP-07 / STEP-11 / STEP-13 / STEP-14 | Retention و سیاست خروج از حساب مشخص نیست | محصول / امنیت | Open | تعیین بازه Cache و رفتار Logout |
+| BLK-08 | 2026-11-24 | STEP-07 / STEP-11 / STEP-13 / STEP-14 | Retention و سیاست خروج از حساب مشخص نیست | محصول / امنیت | Open | Retention حسابداری ۳۰ روز و پاک‌سازی Cache/کلید پیاده شد؛ Retention فروشگاه و تأیید نهایی محصول/امنیت باقی است |
 | BLK-09 | 2026-11-24 | STEP-05 / STEP-06 / STEP-16 | Auth API واقعی موبایل/PWA وجود ندارد؛ MVP با Mock پیش می‌رود | تیم Planet | Deferred / Mock in MVP | Auth مستقل هر سرویس، Access/Refresh Token، Revoke و Permissions API |
 | BLK-10 | 2026-11-24 | STEP-02 / STEP-17 | npm audit: ۲۰ Moderate؛ ۳ مورد Production در زنجیره Expo Fingerprint/Minimatch | Frontend / Release | Open | بازبینی Upgrade هماهنگ Expo SDK؛ بدون Downgrade خودکار |
 
@@ -1021,7 +1022,7 @@ Blockerها:
 - [x] تاریخچه آفلاین آماده است.
 - [x] سطوح پشتیبانی و تخصیص آماده است.
 - [x] فروشگاه فقط‌خواندنی آماده است.
-- [ ] حسابداری فقط‌خواندنی آماده است.
+- [x] حسابداری فقط‌خواندنی آماده است.
 - [ ] CRM محلی آماده است.
 - [ ] PWA آنلاین آماده است.
 - [ ] Hardening انجام شده است.
@@ -1061,3 +1062,4 @@ Blockerها:
 | 1.25 | 2026-11-25 | حفظ رویدادهای ذخیره‌نشده در صف Retry تا Commit موفق بعدی |
 | 1.26 | 2026-11-26 | تکمیل STEP-12، افزودن تخصیص، ارجاع، بستن/بازکردن، بررسی مجوز و Optimistic Update گفتگو |
 | 1.27 | 2026-11-26 | تکمیل STEP-13، افزودن داشبورد و لیست/جزئیات فقط‌خواندنی فروشگاه با Cache آفلاین |
+| 1.28 | 2026-11-27 | تکمیل STEP-14، افزودن حسابداری فقط‌خواندنی، گزارش تجمیعی و Cache مالی رمزنگاری‌شده با Retention محدود |

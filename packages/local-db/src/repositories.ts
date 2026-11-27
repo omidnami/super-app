@@ -1,4 +1,5 @@
 import type {
+  AccountingDashboard,
   AccountingDocument,
   CanonicalMessage,
   Conversation,
@@ -6,6 +7,7 @@ import type {
   Product,
 } from '@superapp/chat-contracts'
 import type { LocalDatabase, SqlValue } from './database'
+import type { PayloadCipher } from './payload-cipher'
 
 interface ConversationRow {
   owner_id: string
@@ -76,16 +78,12 @@ interface ProductRow {
 interface AccountingRow {
   owner_id: string
   server_id: string
-  code: string
-  type: AccountingDocument['type']
-  status: AccountingDocument['status']
-  counterparty_name: string
-  total_amount: number
-  currency: 'IRR'
-  payload_json: string
   issued_at: string
   updated_at: string
   deleted_at: string | null
+  synced_at: string
+  expires_at: string
+  payload_ciphertext: string
 }
 
 function parseJson<T>(value: string | null): T | null {
@@ -144,10 +142,6 @@ function toOrder(row: OrderRow): Order {
 
 function toProduct(row: ProductRow): Product {
   return parseJson<Product>(row.payload_json)!
-}
-
-function toAccountingDocument(row: AccountingRow): AccountingDocument {
-  return parseJson<AccountingDocument>(row.payload_json)!
 }
 
 export class ConversationRepository {
@@ -665,72 +659,265 @@ export class ProductRepository {
   }
 }
 
+export const ACCOUNTING_CACHE_RETENTION_DAYS = 30
+
+interface AccountingRepositoryOptions {
+  cipher?: PayloadCipher
+  retentionDays?: number
+  now?: () => Date
+}
+
+function dateBoundary(value: string | undefined, endOfDay: boolean) {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+  const normalized = dateOnly
+    ? `${trimmed}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`
+    : trimmed
+  const timestamp = Date.parse(normalized)
+  if (
+    !Number.isFinite(timestamp) ||
+    (dateOnly && new Date(timestamp).toISOString().slice(0, 10) !== trimmed)
+  ) {
+    throw new Error('Accounting date range is invalid.')
+  }
+  return new Date(timestamp).toISOString()
+}
+
 export class AccountingRepository {
-  constructor(private readonly database: LocalDatabase) {}
+  private readonly cipher?: PayloadCipher
+  private readonly retentionDays: number
+  private readonly now: () => Date
+
+  constructor(
+    private readonly database: LocalDatabase,
+    options: AccountingRepositoryOptions = {},
+  ) {
+    this.cipher = options.cipher
+    this.retentionDays = Math.min(
+      Math.max(options.retentionDays ?? ACCOUNTING_CACHE_RETENTION_DAYS, 1),
+      365,
+    )
+    this.now = options.now || (() => new Date())
+  }
+
+  private requireCipher() {
+    if (!this.cipher) throw new Error('Encrypted accounting cache requires a PayloadCipher.')
+    return this.cipher
+  }
+
+  private expiresAt() {
+    return new Date(this.now().getTime() + this.retentionDays * 24 * 60 * 60 * 1000).toISOString()
+  }
+
+  async purgeExpired(ownerId: string) {
+    const now = this.now().toISOString()
+    await this.database.run(
+      'DELETE FROM cached_accounting_documents WHERE owner_id = ? AND expires_at <= ?',
+      [ownerId, now],
+    )
+    await this.database.run(
+      "DELETE FROM cached_reports WHERE owner_id = ? AND report_key LIKE 'accounting:%' AND expires_at <= ?",
+      [ownerId, now],
+    )
+  }
 
   async upsert(ownerId: string, document: AccountingDocument, syncedAt: string) {
+    const payloadCiphertext = await this.requireCipher().encrypt(JSON.stringify(document))
     await this.database.run(
       `INSERT INTO cached_accounting_documents (
-        owner_id, server_id, code, type, status, counterparty_name,
-        total_amount, currency, payload_json, issued_at, updated_at, deleted_at, synced_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        owner_id, server_id, issued_at, updated_at, deleted_at, synced_at, expires_at, payload_ciphertext
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_id, server_id) DO UPDATE SET
-        code = excluded.code, type = excluded.type, status = excluded.status,
-        counterparty_name = excluded.counterparty_name,
-        total_amount = excluded.total_amount, currency = excluded.currency,
-        payload_json = excluded.payload_json, issued_at = excluded.issued_at,
-        updated_at = excluded.updated_at, deleted_at = excluded.deleted_at,
-        synced_at = excluded.synced_at
+        issued_at = excluded.issued_at,
+        updated_at = excluded.updated_at,
+        deleted_at = excluded.deleted_at,
+        synced_at = excluded.synced_at,
+        expires_at = excluded.expires_at,
+        payload_ciphertext = excluded.payload_ciphertext
       WHERE excluded.updated_at >= cached_accounting_documents.updated_at`,
       [
         ownerId,
         document.id,
-        document.code,
-        document.type,
-        document.status,
-        document.counterparty_name,
-        document.total.amount,
-        document.total.currency,
-        JSON.stringify(document),
         document.issued_at,
         document.updated_at,
         document.deleted_at,
         syncedAt,
+        this.expiresAt(),
+        payloadCiphertext,
       ],
     )
   }
 
   async markDeleted(ownerId: string, id: string, deletedAt: string, syncedAt: string) {
     await this.database.run(
-      'UPDATE cached_accounting_documents SET deleted_at = ?, updated_at = ?, synced_at = ? WHERE owner_id = ? AND server_id = ?',
-      [deletedAt, deletedAt, syncedAt, ownerId, id],
+      `UPDATE cached_accounting_documents
+       SET deleted_at = ?, updated_at = ?, synced_at = ?, expires_at = ?
+       WHERE owner_id = ? AND server_id = ? AND ? >= updated_at`,
+      [deletedAt, deletedAt, syncedAt, this.expiresAt(), ownerId, id, deletedAt],
     )
+  }
+
+  async get(ownerId: string, id: string) {
+    await this.purgeExpired(ownerId)
+    const row = await this.database.get<AccountingRow>(
+      'SELECT * FROM cached_accounting_documents WHERE owner_id = ? AND server_id = ? AND deleted_at IS NULL',
+      [ownerId, id],
+    )
+    if (!row) return null
+    return JSON.parse(
+      await this.requireCipher().decrypt(row.payload_ciphertext),
+    ) as AccountingDocument
   }
 
   async list(
     ownerId: string,
-    options: { cursor?: string; limit?: number; type?: AccountingDocument['type'] } = {},
+    options: {
+      cursor?: string
+      limit?: number
+      search?: string
+      type?: AccountingDocument['type']
+      status?: AccountingDocument['status']
+      issued_from?: string
+      issued_to?: string
+    } = {},
   ) {
-    const limit = Math.min(Math.max(options.limit || 30, 1), 100)
+    await this.purgeExpired(ownerId)
+    const requestedLimit = Number(options.limit)
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), 100)
+      : 30
     const offset = parseOffset(options.cursor)
+    const conditions = ['owner_id = ?', 'deleted_at IS NULL']
     const params: SqlValue[] = [ownerId]
-    let typeCondition = ''
-    if (options.type) {
-      typeCondition = 'AND type = ?'
-      params.push(options.type)
+    const from = dateBoundary(options.issued_from, false)
+    const to = dateBoundary(options.issued_to, true)
+    if (from && to && Date.parse(from) > Date.parse(to)) {
+      throw new Error('Accounting date range is invalid.')
     }
-    params.push(limit + 1, offset)
+    if (from) {
+      conditions.push('issued_at >= ?')
+      params.push(from)
+    }
+    if (to) {
+      conditions.push('issued_at <= ?')
+      params.push(to)
+    }
     const rows = await this.database.all<AccountingRow>(
-      `SELECT * FROM cached_accounting_documents WHERE owner_id = ? AND deleted_at IS NULL ${typeCondition} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM cached_accounting_documents WHERE ${conditions.join(' AND ')} ORDER BY issued_at DESC, server_id DESC`,
       params,
     )
-    const hasMore = rows.length > limit
-    const items = rows.slice(0, limit).map(toAccountingDocument)
+    const cipher = this.requireCipher()
+    const search = options.search?.trim().toLocaleLowerCase('fa') || ''
+    const filtered: AccountingDocument[] = []
+    for (const row of rows) {
+      const document = JSON.parse(
+        await cipher.decrypt(row.payload_ciphertext),
+      ) as AccountingDocument
+      if (options.type && document.type !== options.type) continue
+      if (options.status && document.status !== options.status) continue
+      if (
+        search &&
+        !document.code.toLocaleLowerCase('fa').includes(search) &&
+        !document.counterparty_name.toLocaleLowerCase('fa').includes(search) &&
+        !document.description.toLocaleLowerCase('fa').includes(search)
+      ) {
+        continue
+      }
+      filtered.push(document)
+    }
+    const items = filtered.slice(offset, offset + limit)
+    const nextOffset = offset + items.length
     return {
       items,
-      next_cursor: hasMore ? `offset_${offset + items.length}` : null,
-      has_more: hasMore,
+      next_cursor: nextOffset < filtered.length ? `offset_${nextOffset}` : null,
+      has_more: nextOffset < filtered.length,
     }
+  }
+
+  async getDashboard(ownerId: string): Promise<AccountingDashboard | null> {
+    await this.purgeExpired(ownerId)
+    const row = await this.database.get<{ payload_json: string }>(
+      "SELECT payload_json FROM cached_reports WHERE owner_id = ? AND report_key = 'accounting:dashboard'",
+      [ownerId],
+    )
+    if (!row) return null
+    return JSON.parse(await this.requireCipher().decrypt(row.payload_json)) as AccountingDashboard
+  }
+
+  async saveDashboard(
+    ownerId: string,
+    dashboard: AccountingDashboard,
+    syncedAt = this.now().toISOString(),
+  ) {
+    const payloadJson = await this.requireCipher().encrypt(JSON.stringify(dashboard))
+    await this.database.transaction(async (transaction) => {
+      await new AccountingRepository(transaction, {
+        cipher: this.cipher,
+        retentionDays: this.retentionDays,
+        now: this.now,
+      }).purgeExpired(ownerId)
+      await transaction.run(
+        `INSERT INTO cached_reports (owner_id, report_key, payload_json, updated_at, synced_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(owner_id, report_key) DO UPDATE SET
+           payload_json = excluded.payload_json,
+           updated_at = excluded.updated_at,
+           synced_at = excluded.synced_at,
+           expires_at = excluded.expires_at
+         WHERE excluded.updated_at >= cached_reports.updated_at`,
+        [
+          ownerId,
+          'accounting:dashboard',
+          payloadJson,
+          dashboard.updated_at,
+          syncedAt,
+          this.expiresAt(),
+        ],
+      )
+      await new SyncStateRepository(transaction).upsert(ownerId, 'accounting:dashboard', {
+        lastSyncedAt: syncedAt,
+        status: 'success',
+      })
+    })
+  }
+
+  async saveDocuments(
+    ownerId: string,
+    documents: AccountingDocument[],
+    syncedAt = this.now().toISOString(),
+  ) {
+    await this.database.transaction(async (transaction) => {
+      const repository = new AccountingRepository(transaction, {
+        cipher: this.cipher,
+        retentionDays: this.retentionDays,
+        now: this.now,
+      })
+      await repository.purgeExpired(ownerId)
+      for (const document of documents) await repository.upsert(ownerId, document, syncedAt)
+      await new SyncStateRepository(transaction).upsert(ownerId, 'accounting:documents', {
+        lastSyncedAt: syncedAt,
+        status: 'success',
+      })
+    })
+  }
+
+  getSyncState(ownerId: string, dataset: string) {
+    return new SyncStateRepository(this.database).get(ownerId, dataset)
+  }
+
+  async clear(ownerId: string) {
+    await this.database.transaction(async (transaction) => {
+      await transaction.run('DELETE FROM cached_accounting_documents WHERE owner_id = ?', [ownerId])
+      await transaction.run(
+        "DELETE FROM cached_reports WHERE owner_id = ? AND report_key LIKE 'accounting:%'",
+        [ownerId],
+      )
+      await transaction.run(
+        "DELETE FROM sync_state WHERE owner_id = ? AND dataset LIKE 'accounting:%'",
+        [ownerId],
+      )
+    })
   }
 }
 

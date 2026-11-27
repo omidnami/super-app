@@ -124,6 +124,7 @@ npm run build
 
 | Package | نام |
 |---|---|
+| Accounting | `@superapp/accounting` |
 | Auth | `@superapp/auth` |
 | Chat | `@superapp/chat` |
 | Media | `@superapp/media` |

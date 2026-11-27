@@ -45,7 +45,7 @@ Adapterهای جایگزین مانند SQLCipher باید همان `DatabaseFac
 - `crm_interactions`
 - `schema_migrations`
 
-همه داده‌های سروری با `owner_id` ایزوله می‌شوند. Cache گفتگوها از Scope ترکیبی اپراتور و پروژه استفاده می‌کند و `project_id` واقعی در ستون جداگانه نگهداری می‌شود. Migration نسخه ۲ داده Cache قدیمیِ بدون Scope اپراتور را حذف می‌کند. Migration نسخه ۳ ستون `sync_version` را برای مقاومت Tombstone در برابر Delta قدیمی اضافه می‌کند.
+همه داده‌های سروری با `owner_id` ایزوله می‌شوند. Cache گفتگوها از Scope ترکیبی اپراتور و پروژه استفاده می‌کند و `project_id` واقعی در ستون جداگانه نگهداری می‌شود. Migration نسخه ۲ داده Cache قدیمیِ بدون Scope اپراتور را حذف می‌کند. Migration نسخه ۳ ستون `sync_version` را برای مقاومت Tombstone در برابر Delta قدیمی اضافه می‌کند. Migration نسخه ۴ جدول Plaintext قدیمی حسابداری را حذف و Payload اسناد/داشبورد مالی را به `payload_ciphertext` با `expires_at` منتقل می‌کند.
 
 ---
 
@@ -66,6 +66,19 @@ Adapterهای جایگزین مانند SQLCipher باید همان `DatabaseFac
 - پیام دارای `client_mutation_id` و ایندکس یکتا است.
 - ترتیب پیام بر اساس `sent_at` و `server_id`.
 - فیلتر پیش‌فرض، رکوردهای `deleted_at IS NULL` را برمی‌گرداند.
+- `AccountingRepository` برای خواندن/نوشتن Payload مالی به `PayloadCipher` نیاز دارد و بدون آن خطا می‌دهد.
+- فیلتر نوع/وضعیت/جستجو پس از Decrypt و Pagination پس از فیلتر انجام می‌شود.
+- Retention پیش‌فرض مالی ۳۰ روز است و رکوردهای منقضی حذف می‌شوند.
+
+---
+
+## ۴.۱. رمزنگاری Payload مالی
+
+- AES-256-GCM با Nonce تصادفی ۱۲ بایتی
+- Scope اپراتور/پروژه در AAD
+- کلید ۳۲ بایتی در SecureStore موبایل
+- حذف کلید هنگام Logout، حتی اگر پاک‌سازی SQLite شکست بخورد
+- ساخت کلید جدید، رکوردهای قدیمیِ ناخوانا را پیش از استفاده پاک می‌کند
 
 ---
 
@@ -109,7 +122,7 @@ Conversation حذف‌شده از فهرست خارج می‌شود، اما پ�
 - ارسال تغییرات آفلاین وجود ندارد.
 - `web_updated_at` برای pending محلی استفاده نمی‌شود.
 - Snapshot کامل فروشگاه و حسابداری رکوردهای حذف‌شده را خودکار پاک نمی‌کند؛ حذف باید با Tombstone یا Full Resync مدیریت شود.
-- رمزنگاری Native Database در این مرحله فعال نشده است.
+- رمزنگاری Native Database (SQLCipher) در این مرحله فعال نشده است؛ در عوض Payload مالی با AES-GCM رمزنگاری می‌شود.
 
 ---
 

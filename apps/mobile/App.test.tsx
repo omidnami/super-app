@@ -15,6 +15,11 @@ jest.mock('./src/shop/cache', () => ({
   clearShopCacheForSession: async () => undefined,
 }))
 
+jest.mock('./src/accounting/cache', () => ({
+  createMobileAccountingCache: () => undefined,
+  clearAccountingCacheForSession: async () => undefined,
+}))
+
 jest.mock('expo-network', () => ({
   getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
   addNetworkStateListener: () => ({ remove: () => undefined }),
@@ -150,8 +155,13 @@ describe('Independent service auth', () => {
     await act(async () => {
       fireEvent.press(getByLabelText('اتصال به مدیریت حساب'))
     })
-    await waitFor(() => expect(getByText('فروشگاه')).toBeTruthy())
+    await waitFor(() => expect(getAllByText('فروشگاه').length).toBeGreaterThan(0))
     expect(getByText('فروش امروز')).toBeTruthy()
+    await act(async () => {
+      fireEvent.press(getByLabelText('حسابداری'))
+    })
+    await waitFor(() => expect(getByText('مبلغ قابل دریافت')).toBeTruthy())
+    expect(getByText('مانده فعلی')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(getByLabelText('پیام‌رسان'))

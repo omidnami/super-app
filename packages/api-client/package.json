@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./accounting": "./src/accounting.ts",
     "./media": "./src/media.ts",
     "./mocks": "./mocks/index.mjs",
     "./shop": "./src/shop.ts"

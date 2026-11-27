@@ -11,6 +11,7 @@ import { clearConversationCacheForSession } from './src/conversations/cache'
 import { clearMobileMediaCache } from './src/conversations/media-cache'
 import { MessagingHub } from './src/components/HubDemo'
 import { AccountShop } from './src/components/ShopDemo'
+import { clearAccountingCacheForSession } from './src/accounting/cache'
 import { clearShopCacheForSession } from './src/shop/cache'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
@@ -27,7 +28,7 @@ async function handleMessagingLogout(session: ServiceSession) {
 }
 
 async function handleAccountLogout(session: ServiceSession) {
-  await clearShopCacheForSession(session)
+  await Promise.all([clearShopCacheForSession(session), clearAccountingCacheForSession(session)])
 }
 
 const moduleMeta = {
