@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Text } from 'react-native'
+import { useEffect, useState } from 'react'
+import { ActivityIndicator, Text } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
+import { getRandomBytes } from 'expo-crypto'
 import { createMockAuthAdapter, type ServiceSession } from '@superapp/auth'
+import { type CrmRepository, useCrm } from '@superapp/crm'
 import { useTheme } from '@superapp/theme'
 import { ServiceAuthBoundary, ServiceSessionProvider } from '@superapp/ui'
-import { Card, MiniAppShell, MobileNavigation, Tabs } from '@superapp/ui/native'
+import { Card, CrmWorkspace, MiniAppShell, MobileNavigation, Tabs } from '@superapp/ui/native'
 import { mobileAuthStorage } from './src/auth/storage'
 import { AuthDemo } from './src/components/AuthDemo'
 import { clearConversationCacheForSession } from './src/conversations/cache'
@@ -16,6 +18,8 @@ import { clearShopCacheForSession } from './src/shop/cache'
 import { AppThemeProvider } from './src/theme/AppThemeProvider'
 import { ThemeGallery } from './src/components/ThemeGallery'
 import { UiKitGallery } from './src/components/UiKitGallery'
+import { pickCrmBackup, shareCrmBackup } from './src/crm/backup'
+import { getLocalCrmRepository, LOCAL_CRM_OWNER_ID, localCrmLock } from './src/crm/runtime'
 
 const authAdapter = createMockAuthAdapter()
 
@@ -42,22 +46,77 @@ function ThemedStatusBar() {
   return <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
 }
 
-function CrmLocalPreview() {
+function CrmSession({ repository }: { repository: CrmRepository }) {
+  const crm = useCrm({
+    repository,
+    ownerId: LOCAL_CRM_OWNER_ID,
+    lock: localCrmLock,
+    randomBytes: getRandomBytes,
+  })
+  return <CrmWorkspace crm={crm} onShareBackup={shareCrmBackup} onPickBackup={pickCrmBackup} />
+}
+
+function CrmLocal() {
   const { tokens } = useTheme()
+  const [repository, setRepository] = useState<CrmRepository | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void getLocalCrmRepository()
+      .then((nextRepository) => {
+        if (active) setRepository(nextRepository)
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : 'باز کردن ذخیره‌سازی CRM ناموفق بود.')
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (error) {
+    return (
+      <Card>
+        <Text style={{ ...tokens.typography.title, color: tokens.color.textPrimary }}>
+          CRM محلی
+        </Text>
+        <Text style={{ ...tokens.typography.body, color: tokens.color.danger, marginTop: 8 }}>
+          {error}
+        </Text>
+      </Card>
+    )
+  }
+  if (!repository) {
+    return (
+      <Card>
+        <CrmLoading
+          label="در حال باز کردن CRM محلی..."
+          color={tokens.color.primary}
+          textColor={tokens.color.textSecondary}
+        />
+      </Card>
+    )
+  }
+  return <CrmSession repository={repository} />
+}
+
+function CrmLoading({
+  label,
+  color,
+  textColor,
+}: {
+  label: string
+  color: string
+  textColor: string
+}) {
   return (
-    <Card>
-      <Text style={{ ...tokens.typography.title, color: tokens.color.textPrimary }}>CRM محلی</Text>
-      <Text
-        style={{
-          ...tokens.typography.body,
-          color: tokens.color.textSecondary,
-          marginTop: tokens.spacing.xs,
-        }}
-      >
-        بدون اتصال به اینترنت و بدون Auth هیچ سرویس قابل‌استفاده است. قفل محلی در فاز بعدی اضافه
-        می‌شود.
-      </Text>
-    </Card>
+    <>
+      <ActivityIndicator color={color} />
+      <Text style={{ marginTop: 8, color: textColor }}>{label}</Text>
+    </>
   )
 }
 
@@ -71,7 +130,7 @@ function AppContent() {
       <MiniAppShell module={activeModule} title={meta.title} subtitle={meta.subtitle}>
         {activeModule === 'superapp' ? (
           <>
-            <CrmLocalPreview />
+            <CrmLocal />
             <ViewGallery tab={galleryTab} onChange={setGalleryTab} />
           </>
         ) : (

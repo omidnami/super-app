@@ -1,8 +1,39 @@
-import { describe, expect, it, jest } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native'
+import type { CrmContact, CrmContactInput } from '@superapp/crm'
 import App from './App'
 
 const mockStorage = new Map<string, string>()
+let mockCrmHasPin = false
+let mockCrmContacts: CrmContact[] = []
+const mockCrmRepository = {
+  listContacts: async () => ({ items: mockCrmContacts, next_cursor: null, has_more: false }),
+  listTags: async () => [],
+  listNotes: async () => [],
+  listTasks: async () => [],
+  listInteractions: async () => [],
+  createContact: async (_ownerId: string, input: CrmContactInput) => {
+    const contact: CrmContact = {
+      local_id: `contact_${mockCrmContacts.length + 1}`,
+      owner_id: 'local-personal',
+      display_name: input.display_name,
+      phone: input.phone ?? null,
+      email: input.email ?? null,
+      tag_ids: input.tag_ids ?? [],
+      created_at: '2026-11-28T09:00:00.000Z',
+      updated_at: '2026-11-28T09:00:00.000Z',
+      deleted_at: null,
+    }
+    mockCrmContacts = [...mockCrmContacts, contact]
+    return contact
+  },
+}
+
+beforeEach(() => {
+  mockStorage.clear()
+  mockCrmHasPin = false
+  mockCrmContacts = []
+})
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 jest.mock('./src/conversations/cache', () => ({
@@ -23,6 +54,22 @@ jest.mock('./src/accounting/cache', () => ({
 jest.mock('expo-network', () => ({
   getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
   addNetworkStateListener: () => ({ remove: () => undefined }),
+}))
+
+jest.mock('expo-crypto', () => ({
+  getRandomBytes: (size: number) => new Uint8Array(size),
+}))
+
+jest.mock('./src/crm/runtime', () => ({
+  LOCAL_CRM_OWNER_ID: 'local-personal',
+  localCrmLock: {
+    hasPin: async () => mockCrmHasPin,
+    setPin: async () => {
+      mockCrmHasPin = true
+    },
+    verifyPin: async (pin: string) => pin === '1234',
+  },
+  getLocalCrmRepository: async () => mockCrmRepository,
 }))
 
 jest.mock('expo-document-picker', () => ({
@@ -92,11 +139,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 describe('Independent service auth', () => {
   it('keeps messaging, account and local CRM sessions independent', async () => {
-    mockStorage.clear()
     const { getByLabelText, getAllByText, getByText, queryByText } = await render(<App />)
     await act(async () => {})
 
-    expect(getByText('CRM محلی')).toBeTruthy()
+    expect(getByLabelText('راه‌اندازی قفل CRM')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(getByLabelText('پیام‌رسان'))
@@ -171,6 +217,35 @@ describe('Independent service auth', () => {
     await act(async () => {
       fireEvent.press(getByLabelText('سوپرآپ'))
     })
-    await waitFor(() => expect(getByText('CRM محلی')).toBeTruthy())
+    await waitFor(() => expect(getByLabelText('راه‌اندازی قفل CRM')).toBeTruthy())
+  }, 20000)
+
+  it('creates a local CRM contact without a service session or network request', async () => {
+    const originalFetch = globalThis.fetch
+    const fetchMock = jest.fn<typeof fetch>()
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    try {
+      const { getAllByLabelText, getByLabelText, getByText } = await render(<App />)
+      await waitFor(() => expect(getByLabelText('راه‌اندازی قفل CRM')).toBeTruthy())
+
+      await fireEvent.changeText(getByLabelText('رمز PIN'), '1234')
+      await fireEvent.changeText(getByLabelText('تکرار رمز PIN'), '1234')
+      await fireEvent.press(getByLabelText('ساخت PIN و ورود'))
+      await waitFor(() => expect(getByText('CRM شخصی')).toBeTruthy())
+
+      await fireEvent.press(getByLabelText('مخاطب جدید'))
+      await fireEvent.changeText(getByLabelText('نام نمایشی مخاطب'), 'سارا احمدی')
+      await fireEvent.changeText(getByLabelText('تلفن مخاطب'), '09120000000')
+      const editor = getAllByLabelText('مخاطب جدید').find(
+        (element) => element.props.accessibilityRole === 'dialog',
+      )
+      expect(editor).toBeTruthy()
+      await fireEvent.press(within(editor!).getByLabelText('ساخت مخاطب'))
+      await waitFor(() => expect(getByText('سارا احمدی')).toBeTruthy())
+      expect(mockCrmContacts).toHaveLength(1)
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   }, 20000)
 })

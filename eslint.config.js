@@ -24,7 +24,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/mobile/metro.config.js'],
+    files: ['apps/mobile/metro.config.js', 'apps/mobile/jest.config.js'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },

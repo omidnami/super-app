@@ -40,11 +40,11 @@
 ### وضعیت کلی
 
 - کل استپ‌ها: **۲۲**
-- تمام‌شده: **۱۵**
+- تمام‌شده: **۱۶**
 - در حال اجرا: **۰**
 - مسدود فعال: **۰**
-- باقی‌مانده: **۷**
-- درصد پیشرفت: **۶۸٫۲٪**
+- باقی‌مانده: **۶**
+- درصد پیشرفت: **۷۲٫۷٪**
 - Blockerهای ثبت‌شده: **۱۰**
 - Blockerهای باز: **۶**
 - Blockerهای Resolved: **۱**
@@ -78,7 +78,7 @@
 | STEP-12 | سطوح پشتیبانی، تخصیص و وضعیت گفتگو | STEP-08 + STEP-09 | Chat | ۱ روز | [x] |
 | STEP-13 | ماژول فروشگاه فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [x] |
 | STEP-14 | ماژول حسابداری فقط‌خواندنی | STEP-03 + STEP-04 + STEP-07 | Business | ۱–۲ روز | [x] |
-| STEP-15 | CRM کاملاً محلی | STEP-03 + STEP-04 | CRM | ۱–۲ روز | [ ] |
+| STEP-15 | CRM کاملاً محلی | STEP-03 + STEP-04 | CRM | ۱–۲ روز | [x] |
 | STEP-16 | PWA آنلاین | STEP-04 + STEP-05 + APIها | PWA | ۱–۲ روز | [ ] |
 | STEP-17 | Hardening امنیت، عملکرد و دسترس‌پذیری | همه ماژول‌ها | QA | ۱–۲ روز | [ ] |
 | STEP-18 | E2E، Release Checklist و خروجی نهایی | STEP-17 | Release | ۱–۲ روز | [ ] |
@@ -805,7 +805,7 @@ STEP-03 → STEP-04 → STEP-05 → STEP-16
 **وابستگی:** STEP-03 + STEP-04
 **خروجی:** CRM آفلاین با قفل و Export
 
-- [ ] **STEP-15 تمام شد**
+- [x] **STEP-15 تمام شد**
 
 ### پرامپت اجرا
 
@@ -983,6 +983,7 @@ Blockerها:
 | 2026-11-26 | STEP-12 | Done | lint، typecheck، format:check و ۱۶۲ تست (۱۱ Package + ۱۴۷ PWA + ۴ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | AssignmentSheet، EscalationSheet، ConversationStatusSheet، APIهای Planet، بررسی نقش/سطح، Optimistic Update، Rollback و مدیریت 403/409 آماده‌اند؛ مستند در `docs/conversation-actions.md`؛ استپ بعدی STEP-13 |
 | 2026-11-26 | STEP-13 | Done | lint، typecheck، format:check و ۱۹۳ تست (۱۱ Package + ۱۷۴ PWA + ۸ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | داشبورد، سفارش‌ها و محصولات فقط‌خواندنی، APIهای Planet، Cache آفلاین موبایل، Search/Filter/Pagination آنلاین و آفلاین، جزئیات، Stale Data، ابطال درخواست با تغییر Scope و پاک‌سازی Cache هنگام Logout آماده‌اند؛ مستند در `docs/shop.md`؛ استپ بعدی STEP-14 |
 | 2026-11-27 | STEP-14 | Done | lint، typecheck، format:check و ۲۶۵ تست (۱۵ Package + ۲۲۵ PWA + ۲۵ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | داشبورد، اسناد، جزئیات، تراکنش‌ها و گزارش تجمیعی فقط‌خواندنی، APIهای Planet، فیلتر بازه زمانی/نوع/وضعیت، Cache آفلاین AES-256-GCM با کلید SecureStore و Retention ۳۰ روزه، Stale Data و پاک‌سازی Cache/کلید هنگام Logout آماده‌اند؛ مستند در `docs/accounting.md`؛ استپ بعدی STEP-15 |
+| 2026-11-28 | STEP-15 | Done | lint، typecheck، format:check و ۳۰۹ تست (۱۵ Package + ۲۵۵ PWA + ۳۹ Mobile) پاس شد | PWA و Expo Export Android/iOS موفق | CRUD محلی مخاطب/برچسب/یادداشت/کار/تعامل، Search/Filter، ایزوله‌سازی مالک، قفل PIN با PBKDF2 و SecureStore، Backup/Import AES-256-GCM و دسترسی CRM بدون Auth/Network آماده‌اند؛ مستند در `docs/crm.md`؛ استپ بعدی STEP-16 |
 
 ---
 
@@ -1023,7 +1024,7 @@ Blockerها:
 - [x] سطوح پشتیبانی و تخصیص آماده است.
 - [x] فروشگاه فقط‌خواندنی آماده است.
 - [x] حسابداری فقط‌خواندنی آماده است.
-- [ ] CRM محلی آماده است.
+- [x] CRM محلی آماده است.
 - [ ] PWA آنلاین آماده است.
 - [ ] Hardening انجام شده است.
 - [ ] E2E و Release انجام شده است.
@@ -1063,3 +1064,4 @@ Blockerها:
 | 1.26 | 2026-11-26 | تکمیل STEP-12، افزودن تخصیص، ارجاع، بستن/بازکردن، بررسی مجوز و Optimistic Update گفتگو |
 | 1.27 | 2026-11-26 | تکمیل STEP-13، افزودن داشبورد و لیست/جزئیات فقط‌خواندنی فروشگاه با Cache آفلاین |
 | 1.28 | 2026-11-27 | تکمیل STEP-14، افزودن حسابداری فقط‌خواندنی، گزارش تجمیعی و Cache مالی رمزنگاری‌شده با Retention محدود |
+| 1.29 | 2026-11-28 | تکمیل STEP-15، افزودن CRM کاملاً محلی، قفل PIN، Backup/Import رمزنگاری‌شده، ایزوله‌سازی مالک و ۳۰۹ تست موفق |

@@ -14,6 +14,7 @@
     "@superapp/chat": "0.1.0",
     "@superapp/chat-contracts": "0.1.0",
     "@superapp/conversation-inbox": "0.1.0",
+    "@superapp/crm": "0.1.0",
     "@superapp/design-tokens": "0.1.0",
     "@superapp/domain": "0.1.0",
     "@superapp/media": "0.1.0",
